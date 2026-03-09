@@ -54,6 +54,7 @@ class ConversationRepository:
             agent_id=agent_id,
             title=normalized_title or "New Conversation",
             status="active",
+            is_pinned=0,
             extra_metadata=metadata,
         )
 
