@@ -12,7 +12,6 @@ from src.agents.common.toolkits.image_gen import text_to_img_demo
 from src.agents.common.toolkits.kg_query import query_knowledge_graph
 from src.agents.common.toolkits.knowledge_base.tool import get_kb_based_tools
 from src.agents.common.toolkits.web_search.tool import get_tavily_search
-from src.agents.common.subagents import calc_agent_tool
 from src.services.mcp_service import get_enabled_mcp_tools
 
 logger = logging.getLogger(__name__)
@@ -86,7 +85,9 @@ def get_buildin_tools() -> list:
         text_to_img_demo,
     ]
 
-    # subagents 工具
+    # subagents 工具 - 延迟导入避免循环依赖
+    from src.agents.common.subagents import calc_agent_tool
+
     static_tools.append(calc_agent_tool)
 
     # 检查是否启用网页搜索

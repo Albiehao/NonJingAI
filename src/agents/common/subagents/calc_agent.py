@@ -2,7 +2,7 @@ from langchain.agents import create_agent
 from langchain.tools import tool
 
 from src import config
-from src.agents.common import load_chat_model
+from src.agents.common.models import load_chat_model
 from src.agents.common.toolkits.calculator.tool import calculator
 
 calc_agent = create_agent(
