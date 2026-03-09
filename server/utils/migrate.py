@@ -286,30 +286,6 @@ class DatabaseMigrator:
             v3_commands.append("ALTER TABLE messages ADD COLUMN image_content TEXT")
 
         migrations.append((3, "为消息表添加多模态图片支持字段", v3_commands))
-
-        # 迁移 v4: 添加部门功能
-        v4_commands: list[str] = []
-
-        # 检查 departments 表是否存在
-        if not self.check_table_exists("departments"):
-            v4_commands.append("""
-                CREATE TABLE departments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(50) NOT NULL UNIQUE,
-                    description VARCHAR(255),
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            v4_commands.append("CREATE INDEX idx_departments_name ON departments(name)")
-
-        # 检查 users 表是否有 department_id 字段
-        if not self.check_column_exists("users", "department_id"):
-            v4_commands.append("ALTER TABLE users ADD COLUMN department_id INTEGER REFERENCES departments(id)")
-
-        v4_commands.append("CREATE INDEX idx_users_department_id ON users(department_id)")
-
-        migrations.append((4, "添加部门功能", v4_commands))
-
         # 迁移 v5: 补全知识库/评估相关表字段（为历史数据库增加新增列）
         v5_commands: list[str] = []
 

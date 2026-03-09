@@ -9,9 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.storage.postgres.manager import pg_manager
-from src.storage.postgres.models_business import User, Department
+from src.storage.postgres.models_business import User
 from src.repositories.user_repository import UserRepository
-from src.repositories.department_repository import DepartmentRepository
 from server.utils.auth_middleware import (
     get_admin_user,
     get_superadmin_user,
@@ -48,7 +47,6 @@ class UserCreate(BaseModel):
     password: str
     role: str = "user"
     phone_number: str | None = None
-    department_id: int | None = None
 
 
 class UserUpdate(BaseModel):
@@ -57,7 +55,6 @@ class UserUpdate(BaseModel):
     role: str | None = None
     phone_number: str | None = None
     avatar: str | None = None
-    department_id: int | None = None
 
 
 class UserProfileUpdate(BaseModel):
@@ -72,8 +69,6 @@ class UserResponse(BaseModel):
     phone_number: str | None = None
     avatar: str | None = None
     role: str
-    department_id: int | None = None
-    department_name: str | None = None  # 部门名称
     created_at: str
     last_login: str | None = None
 
@@ -96,19 +91,6 @@ class UserIdGeneration(BaseModel):
 
 # =============================================================================
 # === 工具函数 ===
-# =============================================================================
-
-
-async def get_default_department_id(db: AsyncSession) -> int | None:
-    """获取默认部门的ID"""
-    result = await db.execute(select(Department).filter(Department.name == "默认部门"))
-    default_dept = result.scalar_one_or_none()
-    return default_dept.id if default_dept else None
-
-
-# 路由：登录获取令牌
-# =============================================================================
-# === 认证分组 ===
 # =============================================================================
 
 
@@ -187,12 +169,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     # 记录登录操作
     await log_operation(db, user.id, "登录")
 
-    # 获取部门名称
-    department_name = None
-    if user.department_id:
-        result = await db.execute(select(Department.name).filter(Department.id == user.department_id))
-        department_name = result.scalar_one_or_none()
-
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -202,8 +178,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         "phone_number": user.phone_number,
         "avatar": user.avatar,
         "role": user.role,
-        "department_id": user.department_id,
-        "department_name": department_name,
     }
 
 
@@ -247,15 +221,6 @@ async def initialize_admin(admin_data: InitializeAdmin, db: AsyncSession = Depen
     # 由于是首次初始化，直接使用输入的user_id
     user_id = admin_data.user_id
 
-    # 创建默认部门
-    dept_repo = DepartmentRepository()
-    default_department = await dept_repo.create(
-        {
-            "name": "默认部门",
-            "description": "系统初始化时创建的默认部门",
-        }
-    )
-
     # 创建管理员用户
     user_repo = UserRepository()
     new_admin = await user_repo.create(
@@ -266,7 +231,6 @@ async def initialize_admin(admin_data: InitializeAdmin, db: AsyncSession = Depen
             "avatar": None,
             "password_hash": hashed_password,
             "role": "superadmin",
-            "department_id": default_department.id,
             "last_login": utc_now_naive(),
         }
     )
@@ -300,10 +264,6 @@ async def initialize_admin(admin_data: InitializeAdmin, db: AsyncSession = Depen
 async def read_users_me(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """获取当前登录用户的个人信息"""
     user_dict = current_user.to_dict()
-
-    if current_user.department_id:
-        result = await db.execute(select(Department.name).filter(Department.id == current_user.department_id))
-        user_dict["department_name"] = result.scalar_one_or_none()
 
     return user_dict
 
@@ -432,25 +392,7 @@ async def create_user(
             detail="管理员只能创建普通用户账户",
         )
 
-    # 部门分配逻辑
-    if current_user.role == "superadmin":
-        # 超级管理员创建用户时，使用指定的部门或默认部门
-        department_id = user_data.department_id
-        if department_id is None:
-            # 获取默认部门
-            dept_repo = DepartmentRepository()
-            departments = await dept_repo.list_departments()
-            default_dept = next((d for d in departments if d.name == "默认部门"), None)
-            department_id = default_dept.id if default_dept else None
-    else:
-        # 普通管理员创建用户时，自动继承该管理员的部门
-        department_id = current_user.department_id
-        # 非超级管理员不能指定部门
-        if user_data.department_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="普通管理员不能指定部门",
-            )
+
 
     new_user = await user_repo.create(
         {
@@ -459,7 +401,6 @@ async def create_user(
             "phone_number": user_data.phone_number,
             "password_hash": hashed_password,
             "role": user_data.role,
-            "department_id": department_id,
         }
     )
 
@@ -802,12 +743,6 @@ async def impersonate_user(
     token_data = {"sub": str(target_user.id)}
     access_token = AuthUtils.create_access_token(token_data)
 
-    # 获取部门名称
-    department_name = None
-    if target_user.department_id:
-        result = await db.execute(select(Department.name).filter(Department.id == target_user.department_id))
-        department_name = result.scalar_one_or_none()
-
     # 记录操作（危险操作标记）
     await log_operation(db, current_user.id, "⚠️ 危险操作-模拟用户", f"模拟用户: {target_user.username}", request)
 
@@ -824,5 +759,4 @@ async def impersonate_user(
         "avatar": target_user.avatar,
         "role": target_user.role,
         "department_id": target_user.department_id,
-        "department_name": department_name,
     }

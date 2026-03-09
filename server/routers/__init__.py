@@ -19,7 +19,6 @@ router.include_router(system)  # /api/system/*
 router.include_router(auth)  # /api/auth/*
 router.include_router(chat)  # /api/chat/*
 router.include_router(dashboard)  # /api/dashboard/*
-router.include_router(department)  # /api/departments/*
 router.include_router(knowledge)  # /api/knowledge/*
 router.include_router(evaluation)  # /api/evaluation/*
 router.include_router(mindmap)  # /api/mindmap/*

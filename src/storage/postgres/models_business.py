@@ -23,28 +23,6 @@ from src.utils.datetime_utils import format_utc_datetime, utc_now_naive
 Base = declarative_base()
 
 
-class Department(Base):
-    """部门模型"""
-
-    __tablename__ = "departments"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False, unique=True, index=True)
-    description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-
-    # 关联关系
-    users = relationship("User", back_populates="department", cascade="all, delete-orphan")
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "created_at": format_utc_datetime(self.created_at),
-        }
-
-
 class User(Base):
     """用户模型"""
 
@@ -73,8 +51,6 @@ class User(Base):
     # 关联操作日志
     operation_logs = relationship("OperationLog", back_populates="user", cascade="all, delete-orphan")
 
-    # 关联部门
-    department = relationship("Department", back_populates="users")
 
     def to_dict(self, include_password: bool = False) -> dict[str, Any]:
         result = {

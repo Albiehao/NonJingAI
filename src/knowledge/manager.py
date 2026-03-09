@@ -178,7 +178,7 @@ class KnowledgeBaseManager:
             db_info = kb_instance.get_database_info(row.db_id)
             if db_info:
                 # 补充 share_config 和 additional_params
-                db_info["share_config"] = row.share_config or {"is_shared": True, "accessible_departments": []}
+                db_info["share_config"] = row.share_config or {"is_shared": True}
                 db_info["additional_params"] = row.additional_params or {}
                 all_databases.append(db_info)
         return {"databases": all_databases}
@@ -207,31 +207,13 @@ class KnowledgeBaseManager:
         share_config = kb.share_config or {}
         is_shared = share_config.get("is_shared", True)
 
-        # 如果是全员共享，则有权限
-        if is_shared:
-            return True
-
-        # 检查部门权限
-        user_department_id = user.get("department_id")
-        accessible_departments = share_config.get("accessible_departments", [])
-
-        if user_department_id is None:
-            return False
-
-        # 转换为整数进行比较（前端可能传递字符串，后端存储为整数）
-        try:
-            user_department_id = int(user_department_id)
-            accessible_departments = [int(d) for d in accessible_departments]
-        except (ValueError, TypeError):
-            return False
-
-        return user_department_id in accessible_departments
+        return is_shared
 
     async def get_databases_by_user(self, user: dict) -> dict:
         """根据用户权限获取知识库列表
 
         Args:
-            user: 用户信息字典，包含 role 和 department_id
+            user: 用户信息字典，包含 role
 
         Returns:
             过滤后的知识库列表
@@ -308,7 +290,7 @@ class KnowledgeBaseManager:
 
         # 默认共享配置
         if share_config is None:
-            share_config = {"is_shared": True, "accessible_departments": []}
+            share_config = {"is_shared": True}
 
         kb_instance = self._get_or_create_kb_instance(kb_type)
         db_info = await kb_instance.create_database(database_name, description, embed_info, **kwargs)
@@ -415,7 +397,7 @@ class KnowledgeBaseManager:
 
         # 添加数据库中的附加字段
         db_info["additional_params"] = kb.additional_params or {}
-        db_info["share_config"] = kb.share_config or {"is_shared": True, "accessible_departments": []}
+        db_info["share_config"] = kb.share_config or {"is_shared": True}
         db_info["mindmap"] = kb.mindmap
         db_info["sample_questions"] = kb.sample_questions or []
         db_info["query_params"] = kb.query_params

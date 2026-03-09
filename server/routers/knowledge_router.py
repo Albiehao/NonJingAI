@@ -66,7 +66,7 @@ media_types = {
 async def get_databases(current_user: User = Depends(get_admin_user)):
     """获取所有知识库（根据用户权限过滤）"""
     try:
-        user_info = {"role": current_user.role, "department_id": current_user.department_id}
+        user_info = {"role": current_user.role}
         return await knowledge_base.get_databases_by_user(user_info)
     except Exception as e:
         logger.error(f"获取数据库列表失败 {e}, {traceback.format_exc()}")
@@ -147,7 +147,7 @@ async def create_database(
 async def get_accessible_databases(current_user: User = Depends(get_required_user)):
     """获取当前用户有权访问的知识库列表（用于智能体配置）"""
     try:
-        user_info = {"role": current_user.role, "department_id": current_user.department_id}
+        user_info = {"role": current_user.role}
         databases = await knowledge_base.get_databases_by_user(user_info)
 
         accessible = [
@@ -370,10 +370,10 @@ async def add_documents(
                     try:
                         # 1. 更新入库参数
                         await knowledge_base.update_file_params(
-                            db_id, file_id, indexing_params, operator_id=current_user.user_id
+                            db_id, file_id, indexing_params,
                         )
                         # 2. 执行入库
-                        result = await knowledge_base.index_file(db_id, file_id, operator_id=current_user.user_id)
+                        result = await knowledge_base.index_file(db_id, file_id)
                         processed_items.append(result)
                     except Exception as index_error:
                         logger.error(f"自动入库失败 {item} (file_id={file_id}): {index_error}")
