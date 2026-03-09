@@ -5,9 +5,8 @@ This module provides a unified namespace for commonly used base classes and util
 allowing simplified imports like:
     from src.agents.common import BaseAgent, BaseContext, BaseState
 
-For other specific functions, use the original import style:
-    from src.agents.common.tools import query_knowledge_graph
-    from src.services.mcp_service import MCP_SERVERS
+For tools, use the tool_registry module:
+    from src.agents.common import get_buildin_tools, gen_tool_info, get_tools_from_context
 """
 
 # Base classes - 核心基类
@@ -18,8 +17,8 @@ from src.agents.common.context import BaseContext
 from src.agents.common.models import load_chat_model
 from src.agents.common.state import BaseState
 
-# Tools - 核心工具函数
-from src.agents.common.tools import gen_tool_info, get_buildin_tools
+# Tools - 工具注册和获取
+from src.agents.common.tool_registry import gen_tool_info, get_buildin_tools, get_tools_from_context
 
 # MCP - Agent 层统一入口（自动过滤 disabled_tools）
 from src.services.mcp_service import get_enabled_mcp_tools
@@ -34,6 +33,7 @@ __all__ = [
     # Core tools
     "get_buildin_tools",
     "gen_tool_info",
+    "get_tools_from_context",
     # Core MCP
     "get_enabled_mcp_tools",
 ]
