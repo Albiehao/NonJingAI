@@ -11,7 +11,7 @@ from langchain.agents.middleware import (
 
 from src.agents.common import BaseAgent, load_chat_model
 from src.agents.common.middlewares import RuntimeConfigMiddleware, SummaryOffloadMiddleware, save_attachments_to_fs
-from src.agents.common.tools import get_tavily_search
+from src.agents.common.toolkits.web_search.tool import get_tavily_search
 from src.services.mcp_service import get_tools_from_all_servers
 from src.utils import logger
 
