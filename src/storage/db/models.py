@@ -10,30 +10,6 @@ Base = declarative_base()
 
 
 ## Removed legacy RDBMS knowledge models (KnowledgeDatabase/KnowledgeFile/KnowledgeNode)
-
-
-class Department(Base):
-    """部门模型"""
-
-    __tablename__ = "departments"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False, unique=True, index=True)
-    description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=utc_now)
-
-    # 关联关系
-    users = relationship("User", back_populates="department")
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "created_at": format_utc_datetime(self.created_at),
-        }
-
-
 class Conversation(Base):
     """Conversation table - new storage system"""
 

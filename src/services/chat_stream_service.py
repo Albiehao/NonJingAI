@@ -305,10 +305,7 @@ async def stream_agent_chat(
     messages = [human_message]
 
     user_id = str(current_user.id)
-    department_id = current_user.department_id
-    if not department_id:
-        yield make_chunk(status="error", error_type="no_department", error_message="当前用户未绑定部门", meta=meta)
-        return
+
 
     agent_config_id = config.get("agent_config_id")
     config_repo = AgentConfigRepository(db)
@@ -319,12 +316,12 @@ async def stream_agent_chat(
         except Exception:
             logger.warning(f"Failed to fetch agent config {agent_config_id}: {traceback.format_exc()}")
             config_item = None
-        if config_item is not None and (config_item.department_id != department_id or config_item.agent_id != agent_id):
+        if config_item is not None and (config_item.agent_id != agent_id):
             config_item = None
 
     if config_item is None:
         config_item = await config_repo.get_or_create_default(
-            department_id=department_id, agent_id=agent_id, created_by=user_id
+            agent_id=agent_id, created_by=user_id
         )
         agent_config_id = config_item.id
 
@@ -336,7 +333,6 @@ async def stream_agent_chat(
     input_context = {
         "user_id": user_id,
         "thread_id": thread_id,
-        "department_id": department_id,
         "agent_config_id": agent_config_id,
         "agent_config": agent_config,
     }
@@ -366,7 +362,7 @@ async def stream_agent_chat(
         requested_knowledge_names = input_context["agent_config"].get("knowledges")
         logger.info(f"Requesting knowledges: {requested_knowledge_names}")
         if requested_knowledge_names and isinstance(requested_knowledge_names, list) and requested_knowledge_names:
-            user_info = {"role": "user", "department_id": department_id}
+            user_info = {"role": "user"}
             accessible_databases = await knowledge_base.get_databases_by_user(user_info)
             accessible_kb_names = {
                 db.get("name")
@@ -530,12 +526,6 @@ async def stream_agent_resume(
     graph = await agent.get_graph()
 
     user_id = str(current_user.id)
-    department_id = current_user.department_id
-    if not department_id:
-        yield make_resume_chunk(
-            status="error", error_type="no_department", error_message="当前用户未绑定部门", meta=meta
-        )
-        return
 
     agent_config_id = (config or {}).get("agent_config_id")
     config_repo = AgentConfigRepository(db)
@@ -546,19 +536,18 @@ async def stream_agent_resume(
         except Exception:
             logger.warning(f"Failed to fetch agent config {agent_config_id}: {traceback.format_exc()}")
             config_item = None
-        if config_item is not None and (config_item.department_id != department_id or config_item.agent_id != agent_id):
+        if config_item is not None and ( config_item.agent_id != agent_id):
             config_item = None
 
     if config_item is None:
         config_item = await config_repo.get_or_create_default(
-            department_id=department_id, agent_id=agent_id, created_by=user_id
+            agent_id=agent_id, created_by=user_id
         )
         agent_config_id = config_item.id
 
     input_context = {
         "user_id": user_id,
         "thread_id": thread_id,
-        "department_id": department_id,
         "agent_config_id": agent_config_id,
         "agent_config": (config_item.config_json or {}).get("context", config_item.config_json or {}),
     }

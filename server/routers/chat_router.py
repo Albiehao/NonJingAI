@@ -194,13 +194,13 @@ async def list_agent_configs(
         raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
 
     repo = AgentConfigRepository(db)
-    items = await repo.list_by_department_agent( agent_id=agent_id)
+    items = await repo.list_by_agent(agent_id=agent_id)
     if not items:
         await repo.get_or_create_default(
             agent_id=agent_id,
             created_by=str(current_user.id),
         )
-        items = await repo.list_by_department_agent(agent_id=agent_id)
+        items = await repo.list_by_agent(agent_id=agent_id)
 
     configs = [
         {

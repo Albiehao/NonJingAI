@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
+from src.storage.postgres.models_business import TaskRecord # noqa: F401
 from src.services.task_service import tasker
 from src.services.mcp_service import init_mcp_servers
 from src.storage.postgres.manager import pg_manager
