@@ -11,8 +11,6 @@ export const useUserStore = defineStore('user', () => {
   const phoneNumber = ref('')
   const avatar = ref('')
   const userRole = ref('')
-  const departmentId = ref(null)
-  const departmentName = ref('')
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
@@ -23,8 +21,8 @@ export const useUserStore = defineStore('user', () => {
   async function login(credentials) {
     try {
       const formData = new FormData()
-      // 支持user_id或phone_number登录
-      formData.append('username', credentials.loginId) // 使用loginId作为通用登录标识
+      // 支持 user_id 或 phone_number 登录
+      formData.append('username', credentials.loginId) // 使用 loginId 作为通用登录标识
       formData.append('password', credentials.password)
 
       const response = await fetch('/api/auth/token', {
@@ -35,7 +33,7 @@ export const useUserStore = defineStore('user', () => {
       if (!response.ok) {
         const error = await response.json()
 
-        // 如果是423锁定状态码，抛出包含状态码的错误
+        // 如果是 423 锁定状态码，抛出包含状态码的错误
         if (response.status === 423) {
           const lockError = new Error(error.detail || '账户被锁定')
           lockError.status = 423
@@ -56,8 +54,6 @@ export const useUserStore = defineStore('user', () => {
       phoneNumber.value = data.phone_number || ''
       avatar.value = data.avatar || ''
       userRole.value = data.role
-      departmentId.value = data.department_id || null
-      departmentName.value = data.department_name || ''
 
       // 只保存 token 到本地存储
       localStorage.setItem('user_token', data.access_token)
@@ -78,8 +74,6 @@ export const useUserStore = defineStore('user', () => {
     phoneNumber.value = ''
     avatar.value = ''
     userRole.value = ''
-    departmentId.value = null
-    departmentName.value = ''
 
     // 清除 agentStore 状态，确保重新登录时能正确加载数据
     const agentStore = useAgentStore()
@@ -114,8 +108,6 @@ export const useUserStore = defineStore('user', () => {
       phoneNumber.value = data.phone_number || ''
       avatar.value = data.avatar || ''
       userRole.value = data.role
-      departmentId.value = data.department_id || null
-      departmentName.value = data.department_name || ''
 
       // 只保存 token 到本地存储
       localStorage.setItem('user_token', data.access_token)
@@ -138,7 +130,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 用于API请求的授权头
+  // 用于 API 请求的授权头
   function getAuthHeaders() {
     return {
       Authorization: `Bearer ${token.value}`
@@ -232,7 +224,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 验证用户名并生成user_id
+  // 验证用户名并生成 user_id
   async function validateUsernameAndGenerateUserId(username) {
     try {
       const response = await fetch('/api/auth/validate-username', {
@@ -309,8 +301,6 @@ export const useUserStore = defineStore('user', () => {
       phoneNumber.value = userData.phone_number || ''
       avatar.value = userData.avatar || ''
       userRole.value = userData.role
-      departmentId.value = userData.department_id || null
-      departmentName.value = userData.department_name || ''
 
       return userData
     } catch (error) {
@@ -362,8 +352,6 @@ export const useUserStore = defineStore('user', () => {
     phoneNumber,
     avatar,
     userRole,
-    departmentId,
-    departmentName,
 
     // 计算属性
     isLoggedIn,
