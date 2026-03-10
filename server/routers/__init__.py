@@ -3,7 +3,6 @@ from fastapi import APIRouter
 from server.routers.auth_router import auth
 from server.routers.chat_router import chat
 from server.routers.dashboard_router import dashboard
-from server.routers.department_router import department
 from server.routers.graph_router import graph
 from server.routers.knowledge_router import knowledge
 from server.routers.evaluation_router import evaluation
