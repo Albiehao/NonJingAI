@@ -109,7 +109,7 @@
 
       <!-- 共享配置 -->
       <h3>共享设置</h3>
-      <ShareConfigForm v-model="shareConfig" :auto-select-user-dept="true" />
+      <p class="share-hint">所有用户都可以访问</p>
       <template #footer>
         <a-button key="back" @click="cancelCreateDatabase">取消</a-button>
         <a-button
@@ -202,7 +202,6 @@ import { typeApi } from '@/apis/knowledge_api'
 import HeaderComponent from '@/components/HeaderComponent.vue'
 import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue'
 import EmbeddingModelSelector from '@/components/EmbeddingModelSelector.vue'
-import ShareConfigForm from '@/components/ShareConfigForm.vue'
 import dayjs, { parseToShanghai } from '@/utils/time'
 import AiTextarea from '@/components/AiTextarea.vue'
 import { getKbTypeLabel, getKbTypeIcon, getKbTypeColor } from '@/utils/kb_utils'
@@ -221,8 +220,7 @@ const state = reactive({
 
 // 共享配置状态（用于提交数据）
 const shareConfig = ref({
-  is_shared: true,
-  accessible_department_ids: []
+  is_shared: true
 })
 
 // 语言选项（值使用英文，以保证后端/LightRAG 兼容；标签为中英文方便理解）
@@ -295,8 +293,7 @@ const resetNewDatabase = () => {
   Object.assign(newDatabase, createEmptyDatabaseForm())
   // 重置共享配置
   shareConfig.value = {
-    is_shared: true,
-    accessible_department_ids: []
+    is_shared: true
   }
 }
 
@@ -370,10 +367,7 @@ const buildRequestData = () => {
 
   // 添加共享配置
   requestData.share_config = {
-    is_shared: shareConfig.value.is_shared,
-    accessible_departments: shareConfig.value.is_shared
-      ? []
-      : shareConfig.value.accessible_department_ids || []
+    is_shared: true
   }
 
   // 根据类型添加特定配置

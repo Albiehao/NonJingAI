@@ -10,7 +10,6 @@ from src.agents.common.middlewares import (
     RuntimeConfigMiddleware,
     save_attachments_to_fs,
 )
-from src.agents.common.toolkits.mysql import get_mysql_tools
 from src.services.mcp_service import get_mcp_server_names, get_tools_from_all_servers
 from src.utils import logger
 
@@ -58,7 +57,7 @@ class SqlReporterAgent(BaseAgent):
     name = "数据库报表助手"
     description = (
         "一个能够生成 SQL 查询报告的智能体助手。同时调用 Charts MCP 生成图表。"
-        "MySQL 工具默认启用，无法选择，mcp 默认启用 Charts MCPs。"
+        "MCP 默认启用 Charts MCPs。"
     )
     context_schema = ReporterContext
     capabilities = [
@@ -77,7 +76,7 @@ class SqlReporterAgent(BaseAgent):
         graph = create_agent(
             model=load_chat_model(context.model),
             system_prompt=context.system_prompt,
-            tools=get_mysql_tools(),  # MySQL 工具默认启用，这里添加的 tools，不会在工具选择框中出现
+            tools=[],  # MySQL 工具已移除，仅使用 MCP 工具
             middleware=[
                 FilesystemMiddleware(backend=_create_fs_backend),  # 文件系统后端
                 RuntimeConfigMiddleware(extra_tools=all_mcp_tools),

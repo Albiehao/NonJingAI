@@ -7,7 +7,7 @@ from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResp
 from langchain_core.messages import SystemMessage
 
 from src.agents.common import load_chat_model
-from src.agents.common.tools import get_buildin_tools, get_kb_based_tools
+from src.agents.common.tool_registry import get_buildin_tools, get_kb_based_tools
 from src.services.mcp_service import get_enabled_mcp_tools
 from src.utils.datetime_utils import shanghai_now
 from src.utils.logging_config import logger

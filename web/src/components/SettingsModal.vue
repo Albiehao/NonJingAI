@@ -42,15 +42,6 @@
         </div>
         <div
           class="sider-item"
-          :class="{ activesec: activeTab === 'department' }"
-          @click="activeTab = 'department'"
-          v-if="userStore.isSuperAdmin"
-        >
-          <TeamOutlined class="icon" />
-          <span>部门管理</span>
-        </div>
-        <div
-          class="sider-item"
           :class="{ activesec: activeTab === 'mcp' }"
           @click="activeTab = 'mcp'"
           v-if="userStore.isSuperAdmin"
@@ -94,14 +85,6 @@
         >
           MCP 管理
         </div>
-        <div
-          class="nav-item"
-          :class="{ active: activeTab === 'department' }"
-          @click="activeTab = 'department'"
-          v-if="userStore.isSuperAdmin"
-        >
-          部门管理
-        </div>
       </div>
 
       <!-- 内容区域 -->
@@ -122,10 +105,6 @@
           <div v-show="activeTab === 'mcp'" v-if="userStore.isSuperAdmin">
             <McpServersComponent />
           </div>
-
-          <div v-show="activeTab === 'department'" v-if="userStore.isSuperAdmin">
-            <DepartmentManagementComponent />
-          </div>
         </div>
       </div>
     </div>
@@ -139,14 +118,12 @@ import {
   SettingOutlined,
   CodeOutlined,
   UserOutlined,
-  ApiOutlined,
-  TeamOutlined
+  ApiOutlined
 } from '@ant-design/icons-vue'
 import BasicSettingsSection from '@/components/BasicSettingsSection.vue'
 import ModelProvidersComponent from '@/components/ModelProvidersComponent.vue'
 import UserManagementComponent from '@/components/UserManagementComponent.vue'
 import McpServersComponent from '@/components/McpServersComponent.vue'
-import DepartmentManagementComponent from '@/components/DepartmentManagementComponent.vue'
 
 const props = defineProps({
   visible: {
@@ -232,11 +209,11 @@ watch(
 
   .sider-item {
     width: 100%;
-    padding: 6px 12px; /* Matches SettingView .sider > * */
+    padding: 6px 12px;
     cursor: pointer;
-    transition: all 0.1s; /* Matches SettingView */
+    transition: all 0.1s;
     text-align: left;
-    font-size: 15px; /* Matches SettingView */
+    font-size: 15px;
     border-radius: 8px;
     color: var(--gray-700);
     display: flex;
@@ -245,7 +222,7 @@ watch(
     margin-left: -20px;
 
     .icon {
-      font-size: 14px; /* Slightly adjusted to align better, SettingView uses h() icon defaults */
+      font-size: 14px;
     }
 
     &:hover {
@@ -270,8 +247,7 @@ watch(
   }
 
   .settings-content {
-    padding: 0; /* Matches SettingView .setting padding */
-    // margin-bottom: 40px; /* Matches SettingView .setting margin-bottom */
+    padding: 0;
     overflow-y: scroll;
     height: 70vh;
 
@@ -285,8 +261,6 @@ watch(
       color: var(--gray-900);
       margin-bottom: 0.5em;
     }
-
-    /* BasicSettingsSection has its own h3 styles which might conflict slightly but are mostly self-contained */
   }
 }
 

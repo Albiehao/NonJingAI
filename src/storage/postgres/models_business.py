@@ -23,28 +23,6 @@ from src.utils.datetime_utils import format_utc_datetime, utc_now_naive
 Base = declarative_base()
 
 
-class Department(Base):
-    """部门模型"""
-
-    __tablename__ = "departments"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), nullable=False, unique=True, index=True)
-    description = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=utc_now_naive)
-
-    # 关联关系
-    users = relationship("User", back_populates="department", cascade="all, delete-orphan")
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "created_at": format_utc_datetime(self.created_at),
-        }
-
-
 class User(Base):
     """用户模型"""
 
@@ -57,7 +35,6 @@ class User(Base):
     avatar = Column(String, nullable=True)  # 头像URL
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="user")  # 角色: superadmin, admin, user
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)  # 部门ID
     created_at = Column(DateTime, default=utc_now_naive)
     last_login = Column(DateTime, nullable=True)
 
@@ -73,8 +50,6 @@ class User(Base):
     # 关联操作日志
     operation_logs = relationship("OperationLog", back_populates="user", cascade="all, delete-orphan")
 
-    # 关联部门
-    department = relationship("Department", back_populates="users")
 
     def to_dict(self, include_password: bool = False) -> dict[str, Any]:
         result = {
@@ -84,7 +59,6 @@ class User(Base):
             "phone_number": self.phone_number,
             "avatar": self.avatar,
             "role": self.role,
-            "department_id": self.department_id,
             "created_at": format_utc_datetime(self.created_at),
             "last_login": format_utc_datetime(self.last_login),
             "login_failed_count": self.login_failed_count,
@@ -116,6 +90,29 @@ class User(Base):
         self.last_failed_login = None
         self.login_locked_until = None
 
+    def increment_failed_login(self, lock_threshold: int = 5, lock_duration_minutes: int = 30):
+        """
+        增加登录失败计数，并在达到阈值时锁定账户。
+
+        :param lock_threshold: 触发锁定的失败次数阈值 (默认 5 次)
+        :param lock_duration_minutes: 锁定持续时间 (分钟) (默认 30 分钟)
+        """
+        from datetime import timedelta
+
+        # 增加失败计数
+        if self.login_failed_count is None:
+            self.login_failed_count = 0
+        self.login_failed_count += 1
+
+        # 更新最后一次失败时间
+        self.last_failed_login = utc_now_naive()
+
+        # 检查是否达到锁定阈值
+        if self.login_failed_count >= lock_threshold:
+            # 计算锁定直到什么时间
+            self.login_locked_until = utc_now_naive() + timedelta(minutes=lock_duration_minutes)
+            # 可选：这里可以添加日志记录或发送通知逻辑
+
 
 class AgentConfig(Base):
     """智能体配置（按部门共享，多份可切换）"""
@@ -123,7 +120,6 @@ class AgentConfig(Base):
     __tablename__ = "agent_configs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    department_id = Column(Integer, ForeignKey("departments.id"), nullable=False, index=True)
     agent_id = Column(String(64), nullable=False, index=True)
 
     name = Column(String(100), nullable=False)
@@ -142,10 +138,8 @@ class AgentConfig(Base):
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     __table_args__ = (
-        UniqueConstraint("department_id", "agent_id", "name", name="uq_agent_configs_department_agent_name"),
         Index(
-            "uq_agent_configs_department_agent_default",
-            "department_id",
+            "uq_agent_configs_agent_default",
             "agent_id",
             unique=True,
             postgresql_where=is_default.is_(True),
@@ -155,7 +149,6 @@ class AgentConfig(Base):
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "department_id": self.department_id,
             "agent_id": self.agent_id,
             "name": self.name,
             "description": self.description,
@@ -182,6 +175,7 @@ class Conversation(Base):
     agent_id = Column(String(64), index=True, nullable=False, comment="Agent ID")
     title = Column(String(255), nullable=True, comment="Conversation title")
     status = Column(String(20), default="active", comment="Status: active/archived/deleted")
+    is_pinned = Column(Integer, default=0, comment="Whether the conversation is pinned (0=No, 1=Yes)")
     created_at = Column(DateTime, default=utc_now_naive, comment="Creation time")
     updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, comment="Update time")
     extra_metadata = Column(JSON, nullable=True, comment="Additional metadata")
@@ -200,6 +194,7 @@ class Conversation(Base):
             "agent_id": self.agent_id,
             "title": self.title,
             "status": self.status,
+            "is_pinned": self.is_pinned or 0,
             "created_at": format_utc_datetime(self.created_at),
             "updated_at": format_utc_datetime(self.updated_at),
             "metadata": self.extra_metadata or {},
