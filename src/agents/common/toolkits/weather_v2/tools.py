@@ -1,10 +1,12 @@
 import os
+import logging
 import requests
 import json
 import urllib3
 from langchain_core.tools import tool
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+logger = logging.getLogger(__name__)
 
 
 # --- 模块 1：地理位置解析（主备容灾） ---
@@ -17,11 +19,14 @@ def _get_location_coords(city: str):
             url = f"https://restapi.amap.com/v3/geocode/geo?address={address}&key={amap_key}"
             res = requests.get(url, timeout=5, verify=False, proxies={"http": None, "https": None})
             data = res.json()
+            logger.info(f"高德 API 响应：address={address}, status={data.get('status')}, info={data.get('info')}")
             if data.get("status") == "1" and data.get("geocodes"):
                 lon, lat = data["geocodes"][0]["location"].split(",")
                 return lon, lat
-        except:
-            pass
+            else:
+                logger.warning(f"高德地理编码失败：{data.get('info')}")
+        except Exception as e:
+            logger.warning(f"高德 API 请求异常：{e}")
 
     # 备：OSM (免Key)
     try:
@@ -29,9 +34,15 @@ def _get_location_coords(city: str):
         res = requests.get(url, headers={'User-Agent': 'WeatherAgent'}, timeout=5, verify=False,
                            proxies={"http": None, "https": None})
         data = res.json()
-        if data: return data[0]["lon"], data[0]["lat"]
-    except:
-        pass
+        if data:
+            logger.info(f"OSM API 成功：address={address}")
+            return data[0]["lon"], data[0]["lat"]
+        else:
+            logger.warning(f"OSM 地理编码无结果：{address}")
+    except Exception as e:
+        logger.warning(f"OSM API 请求异常：{e}")
+
+    logger.error(f"所有地理编码源均失败：{address}")
     return None, None
 
 
