@@ -1,9 +1,9 @@
 <template>
   <div
-    v-if="message.message_type === 'multimodal_image' && message.image_content"
+    v-if="message.message_type === 'multimodal_image' && message.image_url"
     class="message-image"
   >
-    <img :src="`data:image/jpeg;base64,${message.image_content}`" alt="用户上传的图片" />
+    <img :src="message.image_url" alt="用户上传的图片" />
   </div>
   <div class="message-box" :class="[message.type, customClasses]">
     <!-- 用户消息 -->

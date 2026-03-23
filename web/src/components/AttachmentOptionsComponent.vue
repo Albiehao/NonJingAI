@@ -113,10 +113,7 @@ const processImageUpload = async (file) => {
       // 发出上传成功事件，包含处理后的图片数据
       emit('upload-image', {
         success: true,
-        imageContent: result.image_content,
-        thumbnailContent: result.thumbnail_content,
-        width: result.width,
-        height: result.height,
+        imageUrl: result.image_url,
         format: result.format,
         mimeType: result.mime_type || file.type,
         sizeBytes: result.size_bytes,
