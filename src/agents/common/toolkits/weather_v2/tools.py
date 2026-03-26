@@ -2,10 +2,8 @@ import os
 import logging
 import requests
 import json
-import urllib3
 from langchain_core.tools import tool
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +15,7 @@ def _get_location_coords(city: str):
     if amap_key:
         try:
             url = f"https://restapi.amap.com/v3/geocode/geo?address={address}&key={amap_key}"
-            res = requests.get(url, timeout=5, verify=False, proxies={"http": None, "https": None})
+            res = requests.get(url, timeout=5, proxies={"http": None, "https": None})
             data = res.json()
             logger.info(f"高德 API 响应：address={address}, status={data.get('status')}, info={data.get('info')}")
             if data.get("status") == "1" and data.get("geocodes"):
@@ -31,7 +29,7 @@ def _get_location_coords(city: str):
     # 备：OSM (免Key)
     try:
         url = f"https://nominatim.openstreetmap.org/search?q={address}&format=json&limit=1"
-        res = requests.get(url, headers={'User-Agent': 'WeatherAgent'}, timeout=5, verify=False,
+        res = requests.get(url, headers={'User-Agent': 'WeatherAgent'}, timeout=5,
                            proxies={"http": None, "https": None})
         data = res.json()
         if data:
@@ -55,11 +53,10 @@ def _fetch_raw_weather(lon, lat, dailysteps, hourlysteps):
         try:
             # 严格按照你要求的接口格式
             url = f"https://api.caiyunapp.com/v2.6/{caiyun_token}/{lon},{lat}/weather?alert=true&dailysteps={dailysteps}&hourlysteps={hourlysteps}"
-            res = requests.get(url, timeout=10, verify=False, proxies={"http": None, "https": None})
+            res = requests.get(url, timeout=10, proxies={"http": None, "https": None})
             # 返回格式化的 JSON 字符串
             json_str = json.dumps(res.json(), ensure_ascii=False, indent=2)
-            # 添加指令告诉 AI 直接展示给用户
-            return f"以下是天气原始数据 JSON，请直接展示给用户：\n\n```json\n{json_str}\n```"
+            return json_str
         except Exception as e:
             print(f"[备援触发] 彩云请求失败: {e}")
 
@@ -68,11 +65,10 @@ def _fetch_raw_weather(lon, lat, dailysteps, hourlysteps):
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=temperature_2m,precipitation&daily=weather_code&forecast_days={dailysteps}"
         res = requests.get(url, timeout=10)
         json_str = json.dumps(res.json(), ensure_ascii=False, indent=2)
-        return f"以下是天气原始数据 JSON，请直接展示给用户：\n\n```json\n{json_str}\n```"
+        return json_str
     except:
         error_json = json.dumps({"error": "所有天气数据源获取失败"}, ensure_ascii=False, indent=2)
-        # 添加指令告诉 AI 直接展示给用户
-        return f"以下是天气原始数据 JSON，请直接展示给用户：\n\n```json\n{error_json}\n```"
+        return error_json
 
 
 # --- 模块 3：工具入口 ---
@@ -82,8 +78,8 @@ def weather_forecast(city: str, dailysteps: int = 1, hourlysteps: int = 24):
     获取指定城市的天气预报原始数据（JSON 格式）。
     包含预警、天级和小时级数据。
 
-    重要：此工具返回的是格式化的 JSON 代码块，调用后请直接将其返回给用户的对话框中，
-    不要对 JSON 内容进行总结、解析或重新格式化。用户需要查看完整的原始 JSON 数据。
+    此工具返回纯 JSON 字符串。调用后请将 JSON 数据直接返回给用户，不要添加任何描述、总结或解释。
+    用户希望看到原始的 JSON 数据，而不是对天气的解读。
     """
     lon, lat = _get_location_coords(city)
     if not lon:
