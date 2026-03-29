@@ -3,6 +3,7 @@ from deepagents.middleware.filesystem import FilesystemMiddleware
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRetryMiddleware
 
+from src.agents.common.middlewares.image_filter_middleware import ImageFilterMiddleware
 from src.agents.common import BaseAgent, load_chat_model
 from src.agents.common.middlewares import (
     RuntimeConfigMiddleware,
@@ -37,6 +38,7 @@ class ChatbotAgent(BaseAgent):
             model=load_chat_model(context.model),
             system_prompt=context.system_prompt,
             middleware=[
+                ImageFilterMiddleware(enabled=True),# 图片过滤器
                 save_attachments_to_fs,  # 附件注入提示词
                 FilesystemMiddleware(backend=_create_fs_backend),  # 文件系统后端
                 RuntimeConfigMiddleware(extra_tools=all_mcp_tools),  # 运行时配置应用（模型/工具/知识库/MCP/提示词）
