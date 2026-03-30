@@ -267,7 +267,7 @@ async def stream_agent_chat(
         human_message = HumanMessage(
             content=[
                 {"type": "text", "text": query},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_content}"}},
+                {"type": "image_url", "image_url": {"url":image_content}},
             ]
         )
         message_type = "multimodal_image"
@@ -278,7 +278,7 @@ async def stream_agent_chat(
     init_msg = {"role": "user", "content": query, "type": "human"}
     if image_content:
         init_msg["message_type"] = "multimodal_image"
-        init_msg["image_content"] = image_content
+        init_msg["image_url"] = image_content
     else:
         init_msg["message_type"] = "text"
 

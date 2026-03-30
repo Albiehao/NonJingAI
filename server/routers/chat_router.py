@@ -61,6 +61,11 @@ class AgentConfigUpdate(BaseModel):
     examples: list[str] | None = None
     config_json: dict | None = None
 
+class ChatRequest(BaseModel):
+    query: str
+    config:dict = {}
+    meta:dict = {}
+    image_url: str | None = None
 
 chat = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -338,19 +343,21 @@ async def delete_agent_config_profile(
 @chat.post("/agent/{agent_id}")
 async def chat_agent(
     agent_id: str,
-    query: str = Body(...),
-    config: dict = Body({}),
-    meta: dict = Body({}),
-    image_content: str | None = Body(None),
+    request: ChatRequest,
     current_user: User = Depends(get_required_user),
     db: AsyncSession = Depends(get_db),
 ):
+    query = request.query
+    config = request.config
+    meta = request.meta
+    image_url = request.image_url
+
     """使用特定智能体进行对话（需要登录）"""
     logger.info(f"agent_id: {agent_id}, query: {query}, config: {config}, meta: {meta}")
-    logger.info(f"image_content present: {image_content is not None}")
-    if image_content:
-        logger.info(f"image_content length: {len(image_content)}")
-        logger.info(f"image_content preview: {image_content[:50]}...")
+    logger.info(f"image_url present: {image_url is not None}")
+    if image_url:
+        logger.info(f"image_url length: {len(image_url)}")
+        logger.info(f"image_url preview: {image_url[:50]}...")
 
     # 确保 request_id 存在
     if "request_id" not in meta or not meta.get("request_id"):
@@ -363,7 +370,7 @@ async def chat_agent(
             "server_model_name": config.get("model", agent_id),
             "thread_id": config.get("thread_id"),
             "user_id": current_user.id,
-            "has_image": bool(image_content),
+            "has_image": bool(image_url),
         }
     )
     return StreamingResponse(
@@ -372,7 +379,7 @@ async def chat_agent(
             query=query,
             config=config,
             meta=meta,
-            image_content=image_content,
+            image_content=image_url,
             current_user=current_user,
             db=db,
         ),
