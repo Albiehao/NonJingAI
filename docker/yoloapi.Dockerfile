@@ -16,21 +16,16 @@ RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.li
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ 先装 CPU torch
-RUN uv pip install torch torchvision torchaudio \
+COPY yolo/pyproject.toml .
+
+RUN uv sync --no-dev --no-install-project \
+    --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+RUN uv pip install --python /app/.venv/bin/python torch torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cpu
 
-COPY yoloapi/pyproject.toml .
-
-# ✅ 关键：禁止覆盖 torch
-RUN uv sync --no-dev \
-    --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
-    --no-install-package torch \
-    --no-install-package torchvision \
-    --no-install-package torchaudio
-
-COPY yoloapi/ .
+COPY yolo/ .
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--no-sync", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

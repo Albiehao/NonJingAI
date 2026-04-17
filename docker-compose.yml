@@ -297,20 +297,26 @@ services:
       - app-network
     restart: unless-stopped
 
-networks:
-  app-network:
-    driver: bridge
-services:
   yoloapi:
     build:
-      context: .
-      dockerfile: docker/yoloapi.Dockerfile
+        context: .
+        dockerfile: docker/yoloapi.Dockerfile
     image: yolo-api:0.1.0
     container_name: yolo-api
     ports:
       - "8001:8000"
+    depends_on:
+      minio:
+        condition: service_healthy
     environment:
       - RUNNING_IN_DOCKER=true
+      - YOLO_MODEL_PATH=yolo.pt
+      - MINIO_URI=http://minio:9000
+      - MINIO_PUBLIC_URI=http://localhost:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+    networks:
+      - app-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -321,4 +327,5 @@ services:
 
 networks:
   app-network:
-    external: true
+    driver: bridge
+    external: false
