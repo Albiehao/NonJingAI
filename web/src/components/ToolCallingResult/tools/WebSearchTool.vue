@@ -2,45 +2,16 @@
   <BaseToolCall :tool-call="toolCall" :hide-params="true">
     <template #header>
       <div class="sep-header">
-        <span class="note">秘塔搜索</span>
+        <span class="note">网络搜索</span>
         <span class="separator" v-if="query">|</span>
         <span class="description">{{ query }}</span>
       </div>
     </template>
     <template #result="{ resultContent }">
       <div class="web-search-result">
-        <!-- AI 总结模式 -->
-        <div class="ai-answer" v-if="parsedData(resultContent).answer">
-          <div class="answer-label">AI 总结</div>
-          <div class="answer-content">
-            {{ parsedData(resultContent).answer }}
-          </div>
-          <div
-            class="references"
-            v-if="
-              parsedData(resultContent).references &&
-              parsedData(resultContent).references.length > 0
-            "
-          >
-            <div class="references-title">参考来源</div>
-            <div class="reference-list">
-              <div
-                v-for="(ref, index) in parsedData(resultContent).references"
-                :key="index"
-                class="reference-item"
-              >
-                [{{ ref.id }}]
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 传统网页搜索结果 -->
         <div
           class="search-results"
-          v-else-if="
-            parsedData(resultContent).results && parsedData(resultContent).results.length > 0
-          "
+          v-if="parsedData(resultContent).results && parsedData(resultContent).results.length > 0"
         >
           <div
             v-for="(result, index) in parsedData(resultContent).results"
@@ -53,10 +24,18 @@
                   {{ result.title }}
                 </a>
               </h5>
+              <span class="result-score">相关度: {{ (result.score * 100).toFixed(1) }}%</span>
+            </div>
+
+            <div class="result-meta">
+              <!-- <span class="result-url">{{ result.url }}</span> -->
+              <span v-if="result.published_date" class="result-date">
+                {{ formatDate(result.published_date) }}
+              </span>
             </div>
 
             <div class="result-content">
-              {{ result.content || result.snippet }}
+              {{ result.content }}
             </div>
           </div>
         </div>
@@ -75,6 +54,7 @@
 
 <script setup>
 import BaseToolCall from '../BaseToolCall.vue'
+import { parseToShanghai } from '@/utils/time'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -98,9 +78,11 @@ const parseData = (content) => {
 const parsedData = (content) => parseData(content)
 
 const query = computed(() => {
+  // First try to get it from result
   const result = parsedData(props.toolCall.tool_call_result?.content)
   if (result?.query) return result.query
 
+  // Fallback to args
   const args = props.toolCall.args || props.toolCall.function?.arguments
   if (!args) return ''
   if (typeof args === 'object') return args.query || args.q || ''
@@ -111,6 +93,13 @@ const query = computed(() => {
     return ''
   }
 })
+
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const parsed = parseToShanghai(dateString)
+  if (!parsed) return ''
+  return parsed.format('YYYY年MM月DD日')
+}
 </script>
 
 <style lang="less" scoped>
@@ -118,49 +107,18 @@ const query = computed(() => {
   background: var(--gray-0);
   border-radius: 8px;
 
-  .ai-answer {
-    padding: 16px;
+  .search-meta {
+    padding: 12px 16px;
+    background: var(--gray-25);
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--gray-600);
+    border-bottom: 1px solid var(--gray-100);
 
-    .answer-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--main-color);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-
-    .answer-content {
-      font-size: 14px;
-      line-height: 1.8;
+    .query-text {
+      font-weight: 500;
       color: var(--gray-800);
-      white-space: pre-wrap;
-    }
-
-    .references {
-      margin-top: 16px;
-      padding-top: 12px;
-      border-top: 1px solid var(--gray-150);
-
-      .references-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--gray-600);
-        margin-bottom: 8px;
-      }
-
-      .reference-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .reference-item {
-        font-size: 11px;
-        color: var(--gray-500);
-        background: var(--gray-50);
-        padding: 2px 8px;
-        border-radius: 4px;
-      }
     }
   }
 
@@ -181,12 +139,15 @@ const query = computed(() => {
     }
 
     .result-header {
-      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
       .result-title {
         margin: 0;
         font-size: 14px;
         line-height: 1.4;
+        flex: 1;
 
         a {
           color: var(--main-color);
@@ -199,6 +160,32 @@ const query = computed(() => {
           }
         }
       }
+
+      .result-score {
+        font-size: 11px;
+        color: var(--gray-600);
+        background: var(--gray-50);
+        padding: 0px 6px;
+        border-radius: 10px;
+        margin-left: 8px;
+      }
+    }
+
+    .result-meta {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: var(--gray-500);
+
+      .result-url {
+        color: var(--main-400);
+        word-break: break-all;
+      }
+
+      .result-date {
+        color: var(--gray-500);
+      }
     }
 
     .result-content {
@@ -207,8 +194,8 @@ const query = computed(() => {
       color: var(--gray-700);
       overflow: hidden;
       display: -webkit-box;
-      line-clamp: 3;
-      -webkit-line-clamp: 3;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
   }

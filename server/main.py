@@ -13,17 +13,6 @@ from server.utils.lifespan import lifespan
 from server.utils.auth_middleware import is_public_path
 from server.utils.common_utils import setup_logging
 from server.utils.access_log_middleware import AccessLogMiddleware
-from fastapi import applications
-from fastapi.openapi.docs import get_swagger_ui_html
-
-
-def swagger_monkey_patch(*args, **kwargs):
-    return get_swagger_ui_html(
-        *args, **kwargs,
-        swagger_js_url="https://cdn.staticfile.net/swagger-ui/5.1.0/swagger-ui-bundle.min.js",
-        swagger_css_url="https://cdn.staticfile.net/swagger-ui/5.1.0/swagger-ui.min.css")
-
-applications.get_swagger_ui_html = swagger_monkey_patch
 
 # 设置日志配置
 setup_logging()
