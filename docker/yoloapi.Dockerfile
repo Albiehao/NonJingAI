@@ -1,6 +1,5 @@
 FROM python:3.10-slim
 
-COPY --from=ghcr.io/astral-sh/uv:0.7.2 /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -16,6 +15,9 @@ RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.li
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip install --no-cache-dir uv==0.7.2 \
+    --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
 COPY yolo/pyproject.toml .
 
 RUN uv sync --no-dev --no-install-project \
@@ -28,4 +30,4 @@ COPY yolo/ .
 
 EXPOSE 8000
 
-CMD ["uv", "run", "--no-sync", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
