@@ -6,6 +6,7 @@ import traceback
 from typing import Any
 
 from src import config
+from src.agents.common.toolkits.yolo import yolo
 from src.agents.common.toolkits.calculator import calculator
 from src.agents.common.toolkits.human_approval import get_approved_user_goal
 from src.agents.common.toolkits.image_gen import text_to_img_demo
@@ -85,6 +86,7 @@ def get_buildin_tools() -> list:
         calculator,
         text_to_img_demo,
         weather_forecast,
+        yolo,
     ]
 
     # subagents 工具 - 延迟导入避免循环依赖
