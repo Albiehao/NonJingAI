@@ -378,7 +378,7 @@ async def register_user(
     # ========================
     # 2. 强制角色（防提权）
     # ========================
-    role = "user"  # ⚠️ 无视前端传的 role
+    role = "user"
 
     # ========================
     # 3. 生成 user_id
@@ -428,7 +428,7 @@ async def register_user(
             )
 
         else:
-            print("🔥 注册真实报错:", repr(e))
+            logger.debug(f"注册真实报错:{repr(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     # ========================
