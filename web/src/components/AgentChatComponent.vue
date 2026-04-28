@@ -768,8 +768,8 @@ const sendMessage = async ({
   }
 
   // 如果有图片，添加到请求中
-  if (imageData && imageData.imageContent) {
-    requestData.image_content = imageData.imageContent
+  if (imageData && imageData.imageUrl) {
+    requestData.image_url = imageData.imageUrl
   }
 
   try {

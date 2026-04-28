@@ -6,12 +6,13 @@ import traceback
 from typing import Any
 
 from src import config
+from src.agents.common.toolkits.yolo import yolo
 from src.agents.common.toolkits.calculator import calculator
 from src.agents.common.toolkits.human_approval import get_approved_user_goal
 from src.agents.common.toolkits.image_gen import text_to_img_demo
 from src.agents.common.toolkits.kg_query import query_knowledge_graph
 from src.agents.common.toolkits.knowledge_base.tool import get_kb_based_tools
-from src.agents.common.toolkits.weather import weather_forecast
+from src.agents.common.toolkits.weather_v2.tools import weather_forecast
 from src.agents.common.toolkits.web_search.tool import get_tavily_search
 from src.services.mcp_service import get_enabled_mcp_tools
 
@@ -85,6 +86,7 @@ def get_buildin_tools() -> list:
         calculator,
         text_to_img_demo,
         weather_forecast,
+        yolo,
     ]
 
     # subagents 工具 - 延迟导入避免循环依赖

@@ -159,13 +159,39 @@ class Config(BaseModel):
                 if provider in self.model_names:
                     # 更新现有提供商的模型列表
                     if "models" in provider_data:
-                        self.model_names[provider].models = provider_data["models"]
+                        models_data = provider_data["models"]
+                        
+                        # 防御性检查：确保 models 是字典而不是列表
+                        if isinstance(models_data, list):
+                            logger.warning(
+                                f"Provider '{provider}' has models as list, skipping. "
+                                f"Using default models from code."
+                            )
+                            continue
+                        
+                        # 将普通字典转换为 ChatModelInfo 对象字典
+                        from src.config.static.models import ChatModelInfo
+                        model_info_dict = {}
+                        for model_name, model_data in models_data.items():
+                            if isinstance(model_data, dict):
+                                # 将字典转换为 ChatModelInfo 对象
+                                model_info_dict[model_name] = ChatModelInfo(**model_data)
+                            elif isinstance(model_data, ChatModelInfo):
+                                # 如果已经是 ChatModelInfo 对象，直接使用
+                                model_info_dict[model_name] = model_data
+                            else:
+                                logger.warning(f"Invalid model data for {provider}/{model_name}, skipping")
+                        
+                        self.model_names[provider].models = model_info_dict
+                        logger.debug(f"Updated models for provider '{provider}' with {len(model_info_dict)} models")
                 else:
-                    # 添加新的提供商
+                    # 添加新的提供商（Pydantic 会自动处理嵌套模型的转换）
                     self.model_names[provider] = ChatModelProvider(**provider_data)
             logger.info(f"Loaded custom model configurations for {len(model_names_data)} providers")
         except Exception as e:
             logger.error(f"Failed to load model names: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
     def _load_custom_providers(self):
         """从独立的TOML文件加载自定义供应商配置"""
@@ -278,11 +304,37 @@ class Config(BaseModel):
         )
 
         # 添加模型信息（转换为字典格式供前端使用）
-        config_dict["model_names"] = {provider: info.model_dump() for provider, info in self.model_names.items()}
+        # 注意：models 字段需要是字符串数组，而不是字典对象，以兼容前端
+        config_dict["model_names"] = {}
+        for provider, info in self.model_names.items():
+            provider_dict = info.model_dump()
+            # 将 models 字段从字典转换为字符串数组
+            if isinstance(provider_dict.get("models"), dict):
+                provider_dict["models"] = list(provider_dict["models"].keys())
+            config_dict["model_names"][provider] = provider_dict
+            
         config_dict["embed_model_names"] = {
             model_id: info.model_dump() for model_id, info in self.embed_model_names.items()
         }
         config_dict["reranker_names"] = {model_id: info.model_dump() for model_id, info in self.reranker_names.items()}
+        
+        # 添加格式化后的模型选项列表，供前端使用
+        # 格式：[{"label": "模型名称", "value": "provider/model", "provider": "provider", ...}]
+        config_dict["model_options"] = []
+        for provider, info in self.model_names.items():
+            if self.model_provider_status.get(provider, False):
+                for model_name, model_info in info.models.items():
+                    # 将模型信息转换为前端需要的格式
+                    model_dump = model_info.model_dump() if hasattr(model_info, 'model_dump') else model_info
+                    config_dict["model_options"].append({
+                        "label": model_dump.get("name", model_name),
+                        "value": f"{provider}/{model_name}",
+                        "provider": provider,
+                        "model_name": model_name,
+                        "description": model_dump.get("description", ""),
+                        "supports_thinking": model_dump.get("supports_thinking", False),
+                        "vision_support": model_dump.get("vision_support", False),
+                    })
 
         # 添加运行时状态信息
         config_dict["model_provider_status"] = self.model_provider_status

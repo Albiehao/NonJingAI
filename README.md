@@ -1,100 +1,163 @@
-# 农镜 AI - 基于 YOLO 视觉感知与大模型认知的精准农业垂直平台
-本项目基于 Yuxi-Know 进行二次开发与深度定制，专为智慧农业场景打造
-🌱 视觉感知 (YOLO) × 🧠 认知推理 (LLM + Knowledge Graph)
+# 禾影千寻
 
-![Stable](https://img.shields.io/badge/stable-v1.0.0-agriculture.svg)
-![](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=ffffff)
-![YOLO](https://img.shields.io/badge/Vision-YOLOv8/v10-orange?logo=opencv)
-![demo](https://img.shields.io/badge/demo-00A1D6.svg?style=flat&logo=bilibili&logoColor=white)
+基于大模型、知识图谱与视觉识别的智能分析平台，融合 RAG、知识图谱、YOLO 图像识别与 Agent 推理能力，技术栈为 LangGraph v1 + Vue.js + FastAPI + LightRAG。
 
-<img src="image.png" width="300" />
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)
+<img src="image.png" width="320" alt="禾影千寻预览图" />
 
-图片由豆包生成
-## 🚜 项目简介
+## 系统架构
 
-**农镜 AI** 是一款面向现代农业的垂直领域人工智能平台。它创新性地将 **YOLO 系列高精度目标检测算法** 与 **大语言模型（LLM）+ 知识图谱（KG）** 相结合，构建了“眼脑协同”的智能农业系统。
+![img.png](img.png)![禾影千寻系统架构图](docs/images/heyin-qianxun-architecture.png)
 
-- **眼（视觉层）**：利用 YOLOv8/v10 实时识别农作物病虫害、杂草、果实成熟度及生长状态。
-- **脑（认知层）**：基于农业专业知识库与图谱，对视觉结果进行深度推理，生成防治方案、农事建议及产量预测。
+## 项目简介
 
-## ✨ 核心特性
+禾影千寻面向企业知识管理、图谱构建、视觉识别和智能分析场景，提供从文档接入、知识检索、图像识别到推理决策的一体化能力。
 
-### 📷 智能视觉感知 (YOLO Powered)
-- **多类别精准识别**：内置针对农业场景优化的 YOLO 模型，支持数百种病虫害、杂草及作物生长阶段识别。
+当前仓库通过 Docker Compose 管理开发环境，前后端默认开启热重载，适合本地联调和二次开发。
 
-### 🧠 农业知识大脑 (RAG + KG)
-- **病虫害专家系统**：结合视觉识别结果，自动检索知识库，提供权威的防治建议、农药配比及施药窗口期。
-- **动态知识图谱**：构建“作物 - 病害 - 环境 - 防治”关联图谱，支持多跳推理（例如：发现病斑 -> 推断病害 -> 关联近期气象 -> 推荐最佳防治方案）。
-- **多模态文档解析**：支持上传农业论文、植保手册、历史农事记录（PDF/Word/图片），自动转化为可问答的知识库。
+## 核心能力
 
-### 🤖 智能体决策 (Agentic Workflow)
-- **农事规划智能体**：根据识别结果与气象数据，自动生成未来一周的灌溉、施肥、打药计划。
-- **产量预估智能体**：基于果实计数与生长周期图谱，辅助预测地块产量。
-- **私有化部署**：支持本地服务器部署，确保农场敏感数据（地块信息、产量数据）不出域。
+- 文档知识库：支持文档导入、解析、切分、向量化与检索
+- 知识图谱：基于 Neo4j 构建实体与关系图谱
+- 智能问答：结合 RAG、图谱和外部工具增强问答效果
+- YOLO 识别：对上传图片进行目标识别并输出标注结果
+- 思考模式：支持对兼容模型开启思考模式，并配置思考强度
+- 智能体编排：基于 LangGraph 构建多步骤 Agent 工作流
+- 私有化部署：前后端与依赖服务统一由 Docker Compose 编排，适合内网或本地部署
 
-## 🛠 应用场景
+## 技术栈
 
-| 场景 | 功能描述 | 技术支撑 |
-| :--- | :--- | :--- |
-| **病虫害诊断** | 拍照/视频自动识别病害种类，秒级输出防治方案 | YOLO 检测 + RAG 检索 |
-| **杂草管理** | 区分作物与杂草，生成变量喷药处方图 | YOLO 分割 + 决策智能体 |
-| **长势监测** | 统计株数、估测叶面积指数、判断成熟度 | 目标计数 + 时序分析 |
-| **农业问答助手** | 基于内部知识库的自然语言问答，解决种植难题 | LLM + 知识图谱 |
+- 前端：Vue.js
+- 后端：FastAPI
+- Agent 编排：LangGraph v1
+- RAG：LightRAG
+- 图数据库：Neo4j
+- 向量数据库：Milvus
+- 关系数据库：PostgreSQL
+- 对象存储：MinIO
 
-## 🚀 快速开始
+## 主要功能
+
+### 知识库问答
+
+- 支持接入文档型知识库
+- 支持文档解析、切分、向量检索和问答联动
+- 可结合外部搜索与图谱结果生成回答
+
+### 知识图谱分析
+
+- 支持实体与关系存储
+- 可通过图谱查询补充问答上下文
+- 适合做领域知识关联分析和辅助决策
+
+### YOLO 图像识别
+
+平台内置独立的 `yoloapi` 服务，支持对图片执行目标识别。当前识别流程包括：
+
+- 从对象存储读取图片
+- 使用 YOLO 模型执行检测
+- 返回识别类别、置信度和边界框坐标
+- 自动生成带标注框的结果图片并回传链接
+
+适合用于病害识别、目标检测、现场巡检、样本识别等场景。
+
+### 思考模式
+
+智能体支持为兼容模型开启思考模式，并可配置思考强度：
+
+- `low`
+- `medium`
+- `high`
+- `xhigh`
+
+该模式适合多步骤推理、工具调用、复杂问答和链路较长的分析任务。对不支持思考模式的模型不会强制启用。
+
+### Agent 工作流
+
+- 支持基于 LangGraph 的多步骤执行
+- 支持工具调用、附件处理、上下文持久化
+- 支持结合知识库、图谱、搜索、天气、计算和 YOLO 工具协同工作
+
+## 目录结构
+
+```text
+.
+├─server/              # FastAPI 入口与服务端代码
+├─src/                 # Python 核心业务模块
+├─web/                 # Vue 前端
+├─docs/                # VitePress 文档
+├─docker/              # Dockerfile 与相关配置
+├─models/              # 本地模型目录
+├─saves/               # 上传文件与运行数据
+├─scripts/             # 辅助脚本
+└─test/                # 测试代码
+```
+
+## 快速开始
 
 ### 1. 环境准备
-确保已安装 Docker 及 Docker Compose。
 
-### 2. 克隆与初始化
+确保本机已安装：
+
+- Docker
+- Docker Compose
+
+### 2. 初始化配置
+
+复制环境变量模板并按需填写：
+
 ```bash
-# 克隆项目
-git clone --branch v1.0.0-nongjing https://github.com/your-repo/NongJing-AI.git
-cd NongJing-AI
-
-# 初始化脚本 (Linux/macOS)
-./scripts/init.sh
-
-# 初始化脚本 (Windows PowerShell)
-.\scripts\init.ps1
+cp .env.template .env
 ```
 
-### 3. 配置视觉模型
-在 `config/vision.yaml` 中指定您的 YOLO 模型权重路径（支持 `.pt` 格式）：
-```yaml
-vision:
-  model_path: "./models/yolo_v8_crop_pest.pt"
-  confidence_threshold: 0.6
-  classes: ["aphid", "rust", "powdery_mildew", "mature_fruit"]
-```
+至少建议检查以下配置：
 
-### 4. 启动服务
+- `SILICONFLOW_API_KEY`
+- `TAVILY_API_KEY`
+- `YUXI_SUPER_ADMIN_NAME`
+- `YUXI_SUPER_ADMIN_PASSWORD`
+- `MODEL_DIR`
+- `SAVE_DIR`
+
+### 3. 启动开发环境
+
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
-启动完成后，访问 `http://localhost:5173` 即可使用平台。
+服务启动后可访问：
 
-## 📸 系统演示
+- 前端：http://localhost:5173
+- 后端 API：http://localhost:5050
+- Neo4j：http://localhost:7474
+- MinIO Console：http://localhost:9001
 
-### 视觉识别与推理联动
+## 开发方式
 
-*(图示：系统实时识别叶片病斑，并自动调用知识库生成防治建议)*
+本项目推荐直接在运行中的容器内调试。代码改动后不需要手动重启 `api-dev` 和 `web-dev`，服务会自动热更新。
 
-### 知识图谱可视化
+常用命令：
 
-*(图示：作物 - 病害 - 农药关联图谱，辅助决策推理)*
+```bash
+docker ps
+docker logs api-dev --tail 100
+make lint
+make format
+docker compose exec api uv run python test/your_script.py
+```
 
-### 智能体农事规划
+后端接口调试可使用 `.env` 中的 `YUXI_SUPER_ADMIN_NAME` / `YUXI_SUPER_ADMIN_PASSWORD`。
 
-*(图示：基于识别结果自动生成的周农事计划表)*
+## 主要服务
 
-## 🏢 技术支持与服务
+默认开发编排包含以下核心服务：
 
-农镜 AI 专注于为农业科技公司、大型农场及科研机构提供定制化解决方案。
+- `api`: FastAPI 后端，端口 `5050`
+- `web`: Vue 前端，端口 `5173`
+- `postgres`: PostgreSQL，端口 `5432`
+- `graph`: Neo4j，端口 `7474` / `7687`
+- `milvus`: 向量数据库，端口 `19530`
+- `minio`: 对象存储，端口 `9000` / `9001`
 
-- **模型定制训练**：针对特定作物（如柑橘、水稻、玉米）定制高精度 YOLO 模型。
-- **知识库构建**：协助整理地方性植保知识，构建专属农业知识图谱。
-- **边缘端部署**：支持 Jetson Orin 等边缘设备部署，实现田间离线智能分析。
-
-📧 **商务合作与技术咨询**：1185902279@qq.com
+`mineru-vllm-server`、`mineru-api`、`paddlex` 等服务通过 profile 提供，可按需启用。
