@@ -2,6 +2,7 @@ import os
 import traceback
 
 from langchain.chat_models import BaseChatModel, init_chat_model
+from langchain_core.messages import AIMessage
 from pydantic import SecretStr
 
 from src import config
@@ -9,34 +10,79 @@ from src.utils import get_docker_safe_url
 from src.utils.logging_config import logger
 
 
+class _PatchedDeepSeekMixin:
+    """Send reasoning_content back to DeepSeek for thinking-mode tool loops."""
+
+    def _get_request_payload(self, input_, *args, stop=None, **kwargs) -> dict:
+        messages = self._convert_input(input_).to_messages()
+        payload = super()._get_request_payload(input_, *args, stop=stop, **kwargs)
+
+        for message, payload_message in zip(messages, payload.get("messages", []), strict=False):
+            if not isinstance(message, AIMessage):
+                continue
+
+            reasoning_content = message.additional_kwargs.get("reasoning_content")
+            if reasoning_content:
+                payload_message["reasoning_content"] = reasoning_content
+
+        return payload
+
+
+def _get_thinking_config(
+    supports_thinking: bool,
+    thinking_effort: str,
+    thinking_enabled: bool | None = None,
+    thinking_effort_override: str | None = None,
+) -> dict:
+    if not supports_thinking or thinking_enabled is False:
+        return {}
+    return {
+        "reasoning_effort": thinking_effort_override or thinking_effort,
+        "extra_body": {"thinking": {"type": "enabled"}},
+    }
+
+
+def _merge_model_kwargs(kwargs: dict, extra_kwargs: dict) -> dict:
+    if not extra_kwargs:
+        return kwargs
+
+    merged = dict(kwargs)
+    extra_body = dict(merged.get("extra_body") or {})
+    thinking_extra_body = dict(extra_kwargs.get("extra_body") or {})
+    if thinking_extra_body:
+        extra_body.update(thinking_extra_body)
+        merged["extra_body"] = extra_body
+
+    for key, value in extra_kwargs.items():
+        if key == "extra_body":
+            continue
+        merged[key] = value
+
+    return merged
+
+
 def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
-    """
-    Load a chat model from a fully specified name.
-    
-    Args:
-        fully_specified_name: 模型名称，格式为 provider/model
-        **kwargs: 额外的模型配置参数
-    
-    Returns:
-        BaseChatModel: 加载的聊天模型实例
-    """
-    # 防御性检查：确保 fully_specified_name 是字符串
+    """Load a chat model from a fully specified provider/model name."""
+    thinking_enabled = kwargs.pop("thinking_enabled", None)
+    thinking_effort_override = kwargs.pop("thinking_effort", None)
+
     if not isinstance(fully_specified_name, str):
         logger.error(f"Invalid model name type: {type(fully_specified_name)}, value: {fully_specified_name}")
-        # 尝试从常见格式中提取模型名称
         if isinstance(fully_specified_name, dict):
-            # 如果是字典，尝试获取 model_id 或 id 字段
-            model_name = fully_specified_name.get("model_id") or fully_specified_name.get("id") or fully_specified_name.get("name")
+            model_name = (
+                fully_specified_name.get("model_id")
+                or fully_specified_name.get("id")
+                or fully_specified_name.get("name")
+            )
             if model_name:
                 logger.warning(f"Extracted model name from dict: {model_name}")
                 fully_specified_name = str(model_name)
             else:
                 raise ValueError(f"Cannot extract model name from dict: {fully_specified_name}")
         else:
-            # 其他类型，尝试转换为字符串
             logger.warning(f"Converting model name to string: {fully_specified_name}")
             fully_specified_name = str(fully_specified_name)
-    
+
     provider, model = fully_specified_name.split("/", maxsplit=1)
 
     assert provider != "custom", "[弃用] 自定义模型已移除，请在 src/config/static/models.py 中配置"
@@ -46,84 +92,70 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
         raise ValueError(f"Unknown model provider: {provider}")
 
     env_var = model_info.env
-
     api_key = os.getenv(env_var) or env_var
-
     base_url = get_docker_safe_url(model_info.base_url)
 
-    # 获取具体模型配置，检查是否支持思考模式及默认思考强度
     model_config = model_info.models.get(model)
-    
-    # 防御性检查：确保 model_config 是 ChatModelInfo 对象或字典
     if isinstance(model_config, dict):
-        # 如果是字典，转换为属性访问
         supports_thinking = model_config.get("supports_thinking", False)
         thinking_effort = model_config.get("default_thinking_effort", "medium") or "medium"
     elif model_config:
-        # 如果是 ChatModelInfo 对象，直接访问属性
         supports_thinking = model_config.supports_thinking
         thinking_effort = model_config.default_thinking_effort or "medium"
     else:
-        # 如果不存在，使用默认值
         supports_thinking = False
         thinking_effort = "medium"
 
-    if provider in ["openai", "deepseek"]:
+    thinking_kwargs = _get_thinking_config(
+        supports_thinking,
+        thinking_effort,
+        thinking_enabled=thinking_enabled,
+        thinking_effort_override=thinking_effort_override,
+    )
+    kwargs = _merge_model_kwargs(kwargs, thinking_kwargs)
+
+    if provider == "openai":
         model_spec = f"{provider}:{model}"
-        
-        # 如果模型支持思考模式，添加思考相关参数（OpenAI 标准格式）
-        if supports_thinking:
-            if "extra_body" not in kwargs:
-                kwargs["extra_body"] = {}
-            kwargs["extra_body"]["enable_thinking"] = True
-            kwargs["extra_body"]["reasoning_effort"] = thinking_effort
-            logger.debug(f"[thinking] Enabled thinking mode for {model_spec}, effort={thinking_effort}")
-        
         logger.debug(f"[official] Loading model {model_spec} with kwargs {kwargs}")
         return init_chat_model(model_spec, **kwargs)
 
-    elif provider in ["dashscope"]:
+    if provider == "deepseek":
         from langchain_deepseek import ChatDeepSeek
 
-        # 如果模型支持思考模式，添加思考相关参数
-        extra_body = None
-        if supports_thinking:
-            extra_body = {
-                "enable_thinking": True,
-                "reasoning_effort": thinking_effort
-            }
-        
+        class PatchedChatDeepSeek(_PatchedDeepSeekMixin, ChatDeepSeek):
+            pass
+
+        logger.debug(f"[official] Loading model deepseek:{model} with kwargs {kwargs}")
+        return PatchedChatDeepSeek(
+            model=model,
+            api_key=SecretStr(api_key),
+            base_url=base_url,
+            api_base=base_url,
+            stream_usage=True,
+            **kwargs,
+        )
+
+    if provider == "dashscope":
+        from langchain_deepseek import ChatDeepSeek
+
         return ChatDeepSeek(
             model=model,
             api_key=SecretStr(api_key),
             base_url=base_url,
             api_base=base_url,
             stream_usage=True,
-            extra_body=extra_body,
+            **kwargs,
         )
 
-    else:
-        try:  # 其他模型，默认使用OpenAIBase, like zhipuai, siliconflow
-            from langchain_openai import ChatOpenAI
+    try:
+        from langchain_openai import ChatOpenAI
 
-            # 如果模型支持思考模式，添加思考相关参数（OpenAI 标准格式）
-            if supports_thinking:
-                return ChatOpenAI(
-                    model=model,
-                    api_key=SecretStr(api_key),
-                    base_url=base_url,
-                    stream_usage=True,
-                    extra_body={
-                        "enable_thinking": True,
-                        "reasoning_effort": thinking_effort
-                    },
-                )
-            else:
-                return ChatOpenAI(
-                    model=model,
-                    api_key=SecretStr(api_key),
-                    base_url=base_url,
-                    stream_usage=True,
-                )
-        except Exception as e:
-            raise ValueError(f"Model provider {provider} load failed, {e} \n {traceback.format_exc()}")
+        return ChatOpenAI(
+            model=model,
+            api_key=SecretStr(api_key),
+            base_url=base_url,
+            stream_usage=True,
+            **kwargs,
+        )
+    except Exception as e:
+        raise ValueError(f"Model provider {provider} load failed, {e} \n {traceback.format_exc()}")
