@@ -48,6 +48,10 @@ class UserCreate(BaseModel):
     role: str = "user"
     phone_number: str | None = None
 
+class UserCreateRegister(BaseModel):
+    username: str
+    password: str
+    phone_number: str | None = None
 
 class UserUpdate(BaseModel):
     username: str | None = None
@@ -471,7 +475,7 @@ async def register_user(
 
 @auth.post("/users", response_model=UserResponse)
 async def create_user(
-    user_data: UserCreate,
+    user_data: UserCreateRegister,
     request: Request,
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
