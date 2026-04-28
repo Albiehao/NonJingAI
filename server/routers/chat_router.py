@@ -400,12 +400,38 @@ async def get_chat_models(model_provider: str, current_user: User = Depends(get_
     return {"models": models}
 
 
+# ... existing code ...
 @chat.post("/models/update")
 async def update_chat_models(model_provider: str, model_names: list[str], current_user=Depends(get_admin_user)):
     """更新指定模型提供商的模型列表 (仅管理员)"""
-    conf.model_names[model_provider].models = model_names
+    # 创建 ChatModelInfo 对象字典，而不是直接使用字符串列表
+    from src.config.static.models import ChatModelInfo
+
+    # 将字符串列表转换为 ChatModelInfo 对象字典
+    model_info_dict = {}
+    for model_name in model_names:
+        # 从现有模型信息中获取详细信息，如果不存在则创建基本模型信息
+        existing_provider = conf.model_names.get(model_provider)
+        if existing_provider and existing_provider.models.get(model_name):
+            # 如果原 provider 中已有此模型，保留其详细信息
+            model_info_dict[model_name] = existing_provider.models[model_name]
+        else:
+            # 否则创建一个基本的模型信息
+            model_info_dict[model_name] = ChatModelInfo(
+                model_id=model_name,
+                name=model_name.split('/')[-1] if '/' in model_name else model_name,
+                description="自定义模型",
+                vision_support=False,
+                supports_thinking=False,
+                default_thinking_effort="medium",
+                max_tokens=4096,
+                context_window=128000
+            )
+
+    conf.model_names[model_provider].models = model_info_dict
     conf._save_models_to_file(model_provider)
-    return {"models": conf.model_names[model_provider].models}
+    return {"models": list(conf.model_names[model_provider].models.keys())}
+# ... existing code ...
 
 
 @chat.post("/agent/{agent_id}/resume")

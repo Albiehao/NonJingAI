@@ -20,6 +20,23 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     Returns:
         BaseChatModel: 加载的聊天模型实例
     """
+    # 防御性检查：确保 fully_specified_name 是字符串
+    if not isinstance(fully_specified_name, str):
+        logger.error(f"Invalid model name type: {type(fully_specified_name)}, value: {fully_specified_name}")
+        # 尝试从常见格式中提取模型名称
+        if isinstance(fully_specified_name, dict):
+            # 如果是字典，尝试获取 model_id 或 id 字段
+            model_name = fully_specified_name.get("model_id") or fully_specified_name.get("id") or fully_specified_name.get("name")
+            if model_name:
+                logger.warning(f"Extracted model name from dict: {model_name}")
+                fully_specified_name = str(model_name)
+            else:
+                raise ValueError(f"Cannot extract model name from dict: {fully_specified_name}")
+        else:
+            # 其他类型，尝试转换为字符串
+            logger.warning(f"Converting model name to string: {fully_specified_name}")
+            fully_specified_name = str(fully_specified_name)
+    
     provider, model = fully_specified_name.split("/", maxsplit=1)
 
     assert provider != "custom", "[弃用] 自定义模型已移除，请在 src/config/static/models.py 中配置"
@@ -36,8 +53,20 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
 
     # 获取具体模型配置，检查是否支持思考模式及默认思考强度
     model_config = model_info.models.get(model)
-    supports_thinking = model_config.supports_thinking if model_config else False
-    thinking_effort = model_config.default_thinking_effort if model_config and model_config.default_thinking_effort else "medium"
+    
+    # 防御性检查：确保 model_config 是 ChatModelInfo 对象或字典
+    if isinstance(model_config, dict):
+        # 如果是字典，转换为属性访问
+        supports_thinking = model_config.get("supports_thinking", False)
+        thinking_effort = model_config.get("default_thinking_effort", "medium") or "medium"
+    elif model_config:
+        # 如果是 ChatModelInfo 对象，直接访问属性
+        supports_thinking = model_config.supports_thinking
+        thinking_effort = model_config.default_thinking_effort or "medium"
+    else:
+        # 如果不存在，使用默认值
+        supports_thinking = False
+        thinking_effort = "medium"
 
     if provider in ["openai", "deepseek"]:
         model_spec = f"{provider}:{model}"
