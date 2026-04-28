@@ -329,7 +329,140 @@ async def update_profile(
 
     return current_user.to_dict()
 
+# =============================================================================
+# === 公开注册接口 ===
+# =============================================================================
+@auth.post("/register", status_code=201)
+async def register_user(
+    user_data: UserCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """公开注册接口（无需登录）"""
 
+    user_repo = UserRepository()
+
+    # ========================
+    # 1. 参数处理
+    # ========================
+    username = user_data.username.lower().strip()
+    phone = user_data.phone_number.strip() if user_data.phone_number else None
+
+    # 用户名校验（用你现有的）
+    is_valid, error_msg = validate_username(username)
+    if not is_valid:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": 422,
+                "message": "参数校验失败",
+                "errors": [{"field": "username", "reason": error_msg}],
+            },
+        )
+
+    # 手机号校验（用你现有的）
+    if phone and not is_valid_phone_number(phone):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": 422,
+                "message": "参数校验失败",
+                "errors": [{"field": "phone_number", "reason": "手机号格式不正确"}],
+            },
+        )
+
+    # ========================
+    # 2. 强制角色（防提权）
+    # ========================
+    role = "user"  # ⚠️ 无视前端传的 role
+
+    # ========================
+    # 3. 生成 user_id
+    # ========================
+    result = await db.execute(select(User.user_id))
+    existing_user_ids = [uid for (uid,) in result.all()]
+    user_id = generate_unique_user_id(username, existing_user_ids)
+
+    # ========================
+    # 4. 创建用户
+    # ========================
+    try:
+        new_user = await user_repo.create(
+            {
+                "username": username,
+                "user_id": user_id,
+                "phone_number": phone,
+                "password_hash": AuthUtils.hash_password(user_data.password),
+                "role": role,
+            }
+        )
+
+        await db.commit()
+
+    except Exception as e:
+        await db.rollback()
+        msg = str(e)
+
+        if "ix_users_username" in msg:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": 409,
+                    "message": "注册失败",
+                    "errors": [{"field": "username", "reason": "用户名已存在"}],
+                },
+            )
+
+        elif "ix_users_phone_number" in msg:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": 409,
+                    "message": "注册失败",
+                    "errors": [{"field": "phone_number", "reason": "手机号已注册"}],
+                },
+            )
+
+        else:
+            print("🔥 注册真实报错:", repr(e))
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ========================
+    # 5. 脱敏手机号
+    # ========================
+    def mask_phone(p):
+        if not p:
+            return None
+        return p[:3] + "****" + p[-4:]
+
+    # ========================
+    # 6. 记录日志
+    # ========================
+    await log_operation(
+        db,
+        new_user.id,
+        "用户注册",
+        f"注册用户: {username}",
+        request,
+    )
+
+    # ========================
+    # 7. 返回
+    # ========================
+    return {
+        "code": 201,
+        "message": "success",
+        "data": {
+            "id": new_user.id,
+            "username": new_user.username,
+            "user_id": new_user.user_id,
+            "phone_number": mask_phone(new_user.phone_number),
+            "avatar": new_user.avatar,
+            "role": new_user.role,
+            "created_at": str(new_user.created_at),
+            "last_login": None,
+        },
+    }
 # 路由：创建新用户（管理员权限）
 # =============================================================================
 # === 用户管理分组 ===
