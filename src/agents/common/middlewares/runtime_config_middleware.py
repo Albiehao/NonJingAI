@@ -86,7 +86,15 @@ class RuntimeConfigMiddleware(AgentMiddleware):
 
         # 1. 模型覆盖（可选）
         if self.enable_model_override:
-            model = load_chat_model(getattr(runtime_context, self.model_context_name, None))
+            model_spec = getattr(runtime_context, self.model_context_name, None)
+            thinking_enabled = getattr(runtime_context, "thinking_enabled", None)
+            thinking_effort = getattr(runtime_context, "thinking_effort", None)
+            logger.debug(f"RuntimeConfigMiddleware: model={model_spec}, thinking_enabled={thinking_enabled}, thinking_effort={thinking_effort}")
+            model = load_chat_model(
+                model_spec,
+                thinking_enabled=thinking_enabled,
+                thinking_effort=thinking_effort,
+            )
             overrides["model"] = model
 
         # 2. 工具覆盖（可选）

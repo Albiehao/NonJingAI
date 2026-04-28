@@ -28,18 +28,38 @@ class _PatchedDeepSeekMixin:
         return payload
 
 
+def _normalize_thinking_effort(thinking_effort: str | None) -> str | None:
+    if thinking_effort in {"low", "medium"}:
+        return "high"
+    if thinking_effort == "xhigh":
+        return "max"
+    return thinking_effort
+
+
 def _get_thinking_config(
     supports_thinking: bool,
     thinking_effort: str,
     thinking_enabled: bool | None = None,
     thinking_effort_override: str | None = None,
 ) -> dict:
-    if not supports_thinking or thinking_enabled is False:
+    # 模型不支持思考，直接返回空
+    if not supports_thinking:
         return {}
-    return {
-        "reasoning_effort": thinking_effort_override or thinking_effort,
-        "extra_body": {"thinking": {"type": "enabled"}},
-    }
+
+    # 用户显式关闭思考模式 - 需要传递禁用参数（DeepSeek 默认开启）
+    if thinking_enabled is False:
+        return {"extra_body": {"thinking": {"type": "disabled"}}}
+
+    # 用户未设置或显式开启思考模式
+    if thinking_enabled is True:
+        normalized_effort = _normalize_thinking_effort(thinking_effort_override or thinking_effort) or thinking_effort
+        return {
+            "reasoning_effort": normalized_effort,
+            "extra_body": {"thinking": {"type": "enabled"}},
+        }
+
+    # thinking_enabled 为 None（未设置）时，默认不开启
+    return {}
 
 
 def _merge_model_kwargs(kwargs: dict, extra_kwargs: dict) -> dict:
@@ -65,6 +85,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
     """Load a chat model from a fully specified provider/model name."""
     thinking_enabled = kwargs.pop("thinking_enabled", None)
     thinking_effort_override = kwargs.pop("thinking_effort", None)
+    logger.debug(f"load_chat_model: model={fully_specified_name}, thinking_enabled={thinking_enabled}, thinking_effort={thinking_effort_override}")
 
     if not isinstance(fully_specified_name, str):
         logger.error(f"Invalid model name type: {type(fully_specified_name)}, value: {fully_specified_name}")
@@ -112,6 +133,7 @@ def load_chat_model(fully_specified_name: str, **kwargs) -> BaseChatModel:
         thinking_enabled=thinking_enabled,
         thinking_effort_override=thinking_effort_override,
     )
+    logger.debug(f"thinking_kwargs: {thinking_kwargs}, supports_thinking={supports_thinking}")
     kwargs = _merge_model_kwargs(kwargs, thinking_kwargs)
 
     if provider == "openai":
