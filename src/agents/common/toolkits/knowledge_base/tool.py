@@ -1,16 +1,13 @@
 """Knowledge base tools for retrieval and mindmap queries."""
 
 import asyncio
-import logging
 from typing import Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
+from src.utils.logging_config import logger
 from src import knowledge_base
-from src.utils import logger
 
-logger = logging.getLogger(__name__)
 
 
 class KnowledgeRetrieverModel(BaseModel):
