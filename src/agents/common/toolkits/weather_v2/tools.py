@@ -3,9 +3,7 @@ import logging
 import requests
 import json
 from langchain_core.tools import tool
-
-logger = logging.getLogger(__name__)
-
+from src.utils.logging_config import logger
 
 # --- 模块 1：地理位置解析（主备容灾） ---
 def _get_location_coords(city: str):
@@ -58,7 +56,7 @@ def _fetch_raw_weather(lon, lat, dailysteps, hourlysteps):
             json_str = json.dumps(res.json(), ensure_ascii=False, indent=2)
             return json_str
         except Exception as e:
-            print(f"[备援触发] 彩云请求失败: {e}")
+            logger.warning(f"[备援触发] 彩云请求失败: {e}")
 
     # 【备：Open-Meteo (如果彩云挂了或没 Token)】
     try:
