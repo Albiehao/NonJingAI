@@ -1,19 +1,14 @@
 """YOLO plant disease detection tool using FastAPI service."""
 
-import logging
-
+import os
+from src.utils.logging_config import logger
 import requests
 from langchain.tools import tool
 
-logger = logging.getLogger(__name__)
 
 def _get_yolo_api_url() -> str:
     """获取 YOLO API URL，支持环境变量配置"""
-    import os
-    if os.getenv("RUNNING_IN_DOCKER") == "true":
-        return os.getenv("YOLO_API_URL", "http://yoloapi:8000/detect")
-    else:
-        return os.getenv("YOLO_API_URL", "http://127.0.0.1:8001/detect")
+    return os.getenv("YOLO_API_URL", "http://127.0.0.1:8001/detect")
 
 
 @tool()
