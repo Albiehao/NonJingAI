@@ -75,17 +75,13 @@ def _fetch_raw_weather(lon, lat, dailysteps, hourlysteps):
 @tool
 def weather_forecast(city: str, dailysteps: int = 1, hourlysteps: int = 24):
     """
-    获取指定城市的天气预报原始数据（JSON 格式）。
+    获取指定城市的天气预报原始数据.
     包含预警、天级和小时级数据。
-
-    此工具返回纯 JSON 字符串。调用后请将 JSON 数据直接返回给用户，不要添加任何描述、总结或解释。
-    用户希望看到原始的 JSON 数据，而不是对天气的解读。
     """
     lon, lat = _get_location_coords(city)
     if not lon:
         return f"无法定位城市: {city}"
 
-    # 直接返回那一大坨原始数据
     return _fetch_raw_weather(lon, lat, dailysteps, hourlysteps)
 
 
