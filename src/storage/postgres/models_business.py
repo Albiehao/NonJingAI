@@ -494,3 +494,46 @@ class TaskRecord(Base):
         data.pop("payload", None)
         data.pop("result", None)
         return data
+class UserCrop(Base):
+    """用户种植作物表"""
+
+    __tablename__ = "user_crops"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True
+    )
+
+    crop_id = Column(
+        Integer,
+        nullable=False,
+        index=True
+    )
+
+    latitude = Column(
+        Float,
+        nullable=False
+    )
+
+    longitude = Column(
+        Float,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        default=utc_now_naive
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "crop_id": self.crop_id,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+        }

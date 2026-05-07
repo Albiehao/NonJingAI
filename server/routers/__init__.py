@@ -10,7 +10,7 @@ from server.routers.mcp_router import mcp
 from server.routers.mindmap_router import mindmap
 from server.routers.system_router import system
 from server.routers.task_router import tasks
-
+from server.routers.crop_router import router as crop_router
 router = APIRouter()
 
 # 注册路由结构
@@ -24,3 +24,4 @@ router.include_router(mindmap)  # /api/mindmap/*
 router.include_router(graph)  # /api/graph/*
 router.include_router(tasks)  # /api/tasks/*
 router.include_router(mcp)  # /api/system/mcp-servers/*
+router.include_router(crop_router)  # /api/crops/*
