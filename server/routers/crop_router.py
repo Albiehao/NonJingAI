@@ -39,14 +39,4 @@ async def patch_crop(crop_id: int, request: CropPatchRequest):
     # 返回结果
     return {
         "code": 200,
-        "message": "Crop updated successfully",
-        "data": {
-            "id": crop_data["id"],
-            "name": crop_data["name"],
-            "category": crop_data["category"],
-            "description": crop_data["description"],
-            "planting_season": crop_data["planting_season"],
-            "harvest_season": crop_data["harvest_season"],
-            "yield_per_mu": crop_data["yield_per_mu"]
-        }
     }
