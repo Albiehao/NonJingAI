@@ -1,53 +1,42 @@
-from fastapi import APIRouter
-from pydantic import BaseModel, Field, field_validator
-from typing import List
+from fastapi import APIRouter, HTTPException
 
-from server.services.crop_service import CropService
+from server.schemas.crop_schema import CropPatchRequest
+from server.repositories.crop_repository import CropRepository
 
-router = APIRouter(prefix="/crops", tags=["crops"])
-
-
-class Center(BaseModel):
-    lat: float = Field(..., ge=-90, le=90)
-    lng: float = Field(..., ge=-180, le=180)
+crop = APIRouter(
+    prefix="/crops",
+    tags=["Crops"]
+)
 
 
-class GeoFilter(BaseModel):
-    type: str
-    center: Center
-    radius_km: float = Field(..., gt=0, le=1000)
+@crop.patch("/{crop_id}")
+async def patch_crop(crop_id: int, request: CropPatchRequest):
 
-    @field_validator("type")
-    @classmethod
-    def check_type(cls, v):
-        if v != "radius":
-            raise ValueError("geo_filter.type 目前只支持 radius")
-        return v
+    # 获取用户实际传入字段
+    update_data = request.dict(exclude_unset=True)
 
+    # 空请求校验
+    if not update_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No fields provided"
+        )
 
-class CropQueryRequest(BaseModel):
-    crop_ids: List[int]
-    geo_filter: GeoFilter
+    # 调用 repository
+    crop_data = await CropRepository.patch_crop(
+        None,
+        crop_id,
+        update_data
+    )
 
-    @field_validator("crop_ids")
-    @classmethod
-    def check_crop_ids(cls, v):
-        if not v:
-            raise ValueError("crop_ids不能为空")
+    # 未找到数据
+    if not crop_data:
+        raise HTTPException(
+            status_code=404,
+            detail="Crop not found"
+        )
 
-        if any(i <= 0 for i in v):
-            raise ValueError("crop_ids必须为正整数")
-
-        return v
-
-
-@router.post("/find")
-async def find_users(req: CropQueryRequest):
-
-    user_ids = await CropService.find_users_by_crop_and_geo(req)
-
+    # 返回结果
     return {
         "code": 200,
-        "message": "success",
-        "data": user_ids
     }
