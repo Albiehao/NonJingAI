@@ -86,11 +86,7 @@ const visible = computed({
 })
 
 // 说明文本
-const extraText = computed(() =>
-  h('span', {}, [
-    '需要了解评估基准格式？查看使用说明'
-  ])
-)
+const extraText = computed(() => h('span', {}, ['需要了解评估基准格式？查看使用说明']))
 
 // 文件上传前验证
 const beforeUpload = async (file) => {

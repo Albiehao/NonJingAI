@@ -9,9 +9,6 @@ from typing import Annotated, get_args, get_origin
 import yaml
 
 from src import config as sys_config
-from src.services.mcp_service import get_mcp_server_names
-from src.utils import logger
-
 from .tool_registry import gen_tool_info, get_buildin_tools
 
 
@@ -76,15 +73,6 @@ class BaseContext:
             "name": "知识库",
             "description": "知识库列表，可在知识库页面中创建和管理。",
             "type": "list",
-        },
-    )
-
-    mcps: Annotated[list[str], {"__template_metadata__": {"kind": "mcps"}}] = field(
-        default_factory=list,
-        metadata={
-            "name": "MCP服务器",
-            "options": lambda: get_mcp_server_names(),
-            "description": "MCP 服务器列表。",
         },
     )
 

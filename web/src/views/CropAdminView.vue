@@ -3,18 +3,25 @@ import { ref, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   getCategories,
-  getAgrochemicals, getAgrochemicalsByCategory, searchAgrochemicals,
-  addAgrochemical, updateAgrochemical, deleteAgrochemical,
-  getCrops, addCrop, updateCrop, deleteCrop,
-  addCategory, updateCategory, deleteCategory,
+  getAgrochemicals,
+  getAgrochemicalsByCategory,
+  searchAgrochemicals,
+  addAgrochemical,
+  updateAgrochemical,
+  deleteAgrochemical,
+  addCategory,
+  updateCategory,
+  deleteCategory,
   uploadFile,
-  setCropToken, setCropUser, getCropToken, cropLogin
+  setCropToken,
+  setCropUser,
+  getCropToken,
+  cropLogin
 } from '@/apis/crop'
 
 // ===== 状态 =====
 const activeTab = ref('agrochemicals')
 const agrochemicals = ref([])
-const crops = ref([])
 const categories = ref([])
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -26,11 +33,7 @@ const agroEditing = ref(null)
 const agroForm = ref({})
 const agroImageFile = ref(null)
 const agroImagePreview = ref('')
-
-// 作物弹窗
-const cropModalVisible = ref(false)
-const cropEditing = ref(null)
-const cropForm = ref({})
+const fileInputRef = ref(null)
 
 // 分类弹窗
 const categoryModalVisible = ref(false)
@@ -42,7 +45,9 @@ async function loadCategories() {
   try {
     const res = await getCategories()
     if (res.code === 0) categories.value = res.data
-  } catch (e) { console.error(e) }
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 async function loadAgrochemicals() {
@@ -57,22 +62,15 @@ async function loadAgrochemicals() {
       res = await getAgrochemicals()
     }
     if (res.code === 0) agrochemicals.value = res.data || []
-  } catch (e) { console.error(e) }
-  finally { loading.value = false }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
 }
-
-async function loadCrops() {
-  loading.value = true
-  try {
-    const res = await getCrops()
-    if (res.code === 0) crops.value = res.data || []
-  } catch (e) { console.error(e) }
-  finally { loading.value = false }
-}
-
 
 function getCategoryName(id) {
-  const c = categories.value.find(c => c.id === id)
+  const c = categories.value.find((c) => c.id === id)
   return c ? c.name : '-'
 }
 
@@ -96,7 +94,6 @@ onMounted(async () => {
   await ensureLoggedIn()
   loadCategories()
   loadAgrochemicals()
-  loadCrops()
 })
 
 // ===== 搜索/筛选 =====
@@ -114,7 +111,21 @@ function handleCategoryFilter(categoryId) {
 // ===== 农资 CRUD =====
 function openAgroAdd() {
   agroEditing.value = null
-  agroForm.value = { productName: '', brand: '', price: 0, monthlySales: 0, categoryId: null, description: '', registrationNo: '', formulation: '', contentSpec: '', useCrops: '', usageMethod: '', precautions: '', purchaseLinks: '' }
+  agroForm.value = {
+    productName: '',
+    brand: '',
+    price: 0,
+    monthlySales: 0,
+    categoryId: null,
+    description: '',
+    registrationNo: '',
+    formulation: '',
+    contentSpec: '',
+    useCrops: '',
+    usageMethod: '',
+    precautions: '',
+    purchaseLinks: ''
+  }
   agroImageFile.value = null
   agroImagePreview.value = ''
   agroModalVisible.value = true
@@ -126,6 +137,15 @@ function openAgroEdit(item) {
   agroImageFile.value = null
   agroImagePreview.value = item.mainImage || ''
   agroModalVisible.value = true
+}
+
+function onFileChange(e) {
+  const file = e.target.files?.[0]
+  if (file) {
+    agroImageFile.value = file
+    agroImagePreview.value = URL.createObjectURL(file)
+  }
+  e.target.value = ''
 }
 
 async function saveAgrochemical() {
@@ -148,9 +168,7 @@ async function saveAgrochemical() {
     if (data.monthlySales !== undefined && data.monthlySales !== null) {
       data.monthlySales = Number(data.monthlySales)
     }
-    const res = agroEditing.value
-      ? await updateAgrochemical(data)
-      : await addAgrochemical(data)
+    const res = agroEditing.value ? await updateAgrochemical(data) : await addAgrochemical(data)
     if (res.code === 0) {
       message.success(agroEditing.value ? '修改成功' : '添加成功')
       agroModalVisible.value = false
@@ -184,56 +202,6 @@ async function handleDeleteAgro(id) {
   })
 }
 
-// ===== 作物 CRUD =====
-function openCropAdd() {
-  cropEditing.value = null
-  cropForm.value = { name: '', scientificName: '' }
-  cropModalVisible.value = true
-}
-
-function openCropEdit(item) {
-  cropEditing.value = item
-  cropForm.value = { name: item.name, scientificName: item.scientificName || '' }
-  cropModalVisible.value = true
-}
-
-async function saveCrop() {
-  try {
-    const res = cropEditing.value
-      ? await updateCrop(cropEditing.value.id, cropForm.value.name, cropForm.value.scientificName)
-      : await addCrop(cropForm.value.name, cropForm.value.scientificName)
-    if (res.code === 0) {
-      message.success(cropEditing.value ? '修改成功' : '添加成功')
-      cropModalVisible.value = false
-      loadCrops()
-    } else {
-      message.error(res.message || '操作失败')
-    }
-  } catch (e) {
-    message.error('网络异常')
-  }
-}
-
-async function handleDeleteCrop(id) {
-  Modal.confirm({
-    title: '确认删除',
-    content: '确定要删除该作物吗？',
-    onOk: async () => {
-      try {
-        const res = await deleteCrop(id)
-        if (res.code === 0) {
-          message.success('删除成功')
-          loadCrops()
-        } else {
-          message.error(res.message || '删除失败')
-        }
-      } catch (e) {
-        message.error('网络异常')
-      }
-    }
-  })
-}
-
 // ===== 分类 CRUD =====
 function openCategoryAdd() {
   categoryEditing.value = null
@@ -250,7 +218,12 @@ function openCategoryEdit(item) {
 async function saveCategory() {
   try {
     const res = categoryEditing.value
-      ? await updateCategory(categoryEditing.value.id, categoryForm.value.name, null, categoryForm.value.description)
+      ? await updateCategory(
+          categoryEditing.value.id,
+          categoryForm.value.name,
+          null,
+          categoryForm.value.description
+        )
       : await addCategory(categoryForm.value.name, null, categoryForm.value.description)
     if (res.code === 0) {
       message.success(categoryEditing.value ? '修改成功' : '添加成功')
@@ -283,12 +256,11 @@ async function handleDeleteCategory(id) {
     }
   })
 }
-
 </script>
 
 <template>
   <div class="crop-admin">
-    <h2 style="margin:0 0 16px 0;font-size:20px;">农资管理</h2>
+    <h2 style="margin: 0 0 16px 0; font-size: 20px">农资管理</h2>
 
     <a-tabs v-model:activeKey="activeTab" type="card">
       <!-- 分类管理 -->
@@ -296,19 +268,18 @@ async function handleDeleteCategory(id) {
         <div class="section-actions">
           <a-button type="primary" @click="openCategoryAdd">新增分类</a-button>
         </div>
-        <a-table
-          :dataSource="categories"
-          rowKey="id"
-          :pagination="{ pageSize: 20 }"
-          size="small"
-        >
+        <a-table :dataSource="categories" rowKey="id" :pagination="{ pageSize: 20 }" size="small">
           <a-table-column title="名称" dataIndex="name" :width="200" />
           <a-table-column title="描述" dataIndex="description" ellipsis />
           <a-table-column title="操作" :width="160" align="center">
             <template #default="{ record }">
               <a-space>
-                <a-button size="small" type="primary" ghost @click="openCategoryEdit(record)">编辑</a-button>
-                <a-button size="small" danger @click="handleDeleteCategory(record.id)">删除</a-button>
+                <a-button size="small" type="primary" ghost @click="openCategoryEdit(record)"
+                  >编辑</a-button
+                >
+                <a-button size="small" danger @click="handleDeleteCategory(record.id)"
+                  >删除</a-button
+                >
               </a-space>
             </template>
           </a-table-column>
@@ -329,7 +300,7 @@ async function handleDeleteCategory(id) {
         <div class="category-tags">
           <a-tag
             :color="selectedCategoryId === null ? 'blue' : 'default'"
-            style="cursor:pointer"
+            style="cursor: pointer"
             @click="handleCategoryFilter(null)"
           >
             全部
@@ -338,7 +309,7 @@ async function handleDeleteCategory(id) {
             v-for="c in categories"
             :key="c.id"
             :color="selectedCategoryId === c.id ? 'blue' : 'default'"
-            style="cursor:pointer"
+            style="cursor: pointer"
             @click="handleCategoryFilter(c.id)"
           >
             {{ c.name }}
@@ -353,9 +324,21 @@ async function handleDeleteCategory(id) {
         >
           <a-table-column title="图片" :width="120">
             <template #default="{ record }">
-              <div style="display:flex;justify-content:center;">
-                <img v-if="record.mainImage" :src="record.mainImage" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #f0f0f0;box-shadow:0 2px 6px rgba(0,0,0,0.06);" @error="$event.target.style.display='none'" />
-                <span v-else style="color:#bbb;font-size:12px;">无图片</span>
+              <div style="display: flex; justify-content: center">
+                <img
+                  v-if="record.mainImage"
+                  :src="record.mainImage"
+                  style="
+                    width: 80px;
+                    height: 80px;
+                    object-fit: cover;
+                    border-radius: 8px;
+                    border: 1px solid #f0f0f0;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+                  "
+                  @error="$event.target.style.display = 'none'"
+                />
+                <span v-else style="color: #bbb; font-size: 12px">无图片</span>
               </div>
             </template>
           </a-table-column>
@@ -374,40 +357,23 @@ async function handleDeleteCategory(id) {
           <a-table-column title="月销量" dataIndex="monthlySales" :width="80" />
           <a-table-column title="购买链接" :width="200" ellipsis>
             <template #default="{ record }">
-              <a v-if="record.purchaseLinks" :href="record.purchaseLinks" target="_blank" style="font-size:12px;">{{ record.purchaseLinks }}</a>
-              <span v-else style="color:#bbb;">-</span>
+              <a
+                v-if="record.purchaseLinks"
+                :href="record.purchaseLinks"
+                target="_blank"
+                style="font-size: 12px"
+                >{{ record.purchaseLinks }}</a
+              >
+              <span v-else style="color: #bbb">-</span>
             </template>
           </a-table-column>
           <a-table-column title="操作" :width="160" align="center">
             <template #default="{ record }">
               <a-space>
-                <a-button size="small" type="primary" ghost @click="openAgroEdit(record)">编辑</a-button>
+                <a-button size="small" type="primary" ghost @click="openAgroEdit(record)"
+                  >编辑</a-button
+                >
                 <a-button size="small" danger @click="handleDeleteAgro(record.id)">删除</a-button>
-              </a-space>
-            </template>
-          </a-table-column>
-        </a-table>
-      </a-tab-pane>
-
-      <!-- 作物管理 -->
-      <a-tab-pane key="crops" tab="作物管理">
-        <div class="section-actions">
-          <a-button type="primary" @click="openCropAdd">新增作物</a-button>
-        </div>
-        <a-table
-          :dataSource="crops"
-          :loading="loading"
-          rowKey="id"
-          :pagination="{ pageSize: 20 }"
-          size="small"
-        >
-          <a-table-column title="名称" dataIndex="name" />
-          <a-table-column title="学名" dataIndex="scientificName" />
-          <a-table-column title="操作" :width="160" align="center">
-            <template #default="{ record }">
-              <a-space>
-                <a-button size="small" type="primary" ghost @click="openCropEdit(record)">编辑</a-button>
-                <a-button size="small" danger @click="handleDeleteCrop(record.id)">删除</a-button>
               </a-space>
             </template>
           </a-table-column>
@@ -451,25 +417,38 @@ async function handleDeleteCategory(id) {
             <a-form-item label="价格(元)">
               <a-input-number
                 v-model:value="agroForm.price"
-                style="width:100%"
+                style="width: 100%"
                 :precision="2"
-                :formatter="v => v !== undefined ? (Number(v) / 100).toFixed(2) : '0.00'"
-                :parser="v => v ? String(Math.round(parseFloat(v) * 100)) : '0'"
+                :formatter="(v) => (v !== undefined ? (Number(v) / 100).toFixed(2) : '0.00')"
+                :parser="(v) => (v ? String(Math.round(parseFloat(v) * 100)) : '0')"
               />
             </a-form-item>
           </a-col>
           <a-col :span="8">
             <a-form-item label="月销量">
-              <a-input-number v-model:value="agroForm.monthlySales" style="width:100%" />
+              <a-input-number v-model:value="agroForm.monthlySales" style="width: 100%" />
             </a-form-item>
           </a-col>
         </a-row>
         <a-form-item label="图片">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <img v-if="agroImagePreview" :src="agroImagePreview" style="width:100px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #d9d9d9;box-shadow:0 2px 8px rgba(0,0,0,0.08);" @error="$event.target.style.display='none'" />
-            <a-upload :before-upload="(file) => { agroImageFile.value = file; agroImagePreview.value = URL.createObjectURL(file); return false }" :show-upload-list="false" accept="image/*">
-              <a-button>{{ agroImagePreview ? '换图' : '选择图片' }}</a-button>
-            </a-upload>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <img
+              v-if="agroImagePreview"
+              :src="agroImagePreview"
+              style="
+                width: 100px;
+                height: 100px;
+                object-fit: cover;
+                border-radius: 8px;
+                border: 1px solid #d9d9d9;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+              "
+              @error="$event.target.style.display = 'none'"
+            />
+            <input ref="fileInputRef" type="file" accept="image/*" style="display: none" @change="onFileChange" />
+            <a-button @click="fileInputRef?.click()">
+              {{ agroImagePreview ? '换图' : '选择图片' }}
+            </a-button>
           </div>
         </a-form-item>
         <a-row :gutter="24">
@@ -509,24 +488,6 @@ async function handleDeleteCategory(id) {
         </a-form-item>
         <a-form-item label="购买链接">
           <a-input v-model:value="agroForm.purchaseLinks" placeholder="https://" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
-    <!-- 作物弹窗 -->
-    <a-modal
-      v-model:open="cropModalVisible"
-      :title="cropEditing ? '编辑作物' : '新增作物'"
-      @ok="saveCrop"
-      ok-text="保存"
-      cancel-text="取消"
-    >
-      <a-form layout="vertical">
-        <a-form-item label="名称" required>
-          <a-input v-model:value="cropForm.name" />
-        </a-form-item>
-        <a-form-item label="学名">
-          <a-input v-model:value="cropForm.scientificName" />
         </a-form-item>
       </a-form>
     </a-modal>

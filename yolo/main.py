@@ -16,7 +16,6 @@ MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolo.pt")
 model = YOLO(MODEL_PATH)
 
 MINIO_URI = os.getenv("MINIO_URI", "http://minio:9000")
-MINIO_PUBLIC_URI = os.getenv("MINIO_PUBLIC_URI", "http://localhost:9000")
 MINIO_ENDPOINT = MINIO_URI.replace("http://", "").replace("https://", "")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
@@ -58,10 +57,19 @@ def health():
 def parse_minio_url(image_url: str):
     parsed = urlparse(image_url)
     path = parsed.path.lstrip("/")
+    # 兼容新代理 URL 格式: /api/storage/{bucket}/{object}
+    if path.startswith("api/storage/"):
+        path = path[len("api/storage/"):]
     parts = path.split("/", 1)
     if len(parts) != 2 or not all(parts):
         raise HTTPException(status_code=400, detail="图片 URL 格式不正确")
     return parts[0], parts[1]
+
+
+def _get_result_base_url(image_url: str) -> str:
+    """从传入的 image_url 提取协议和主机，构造结果图片的基础 URL"""
+    parsed = urlparse(image_url)
+    return f"{parsed.scheme}://{parsed.netloc}/api/storage"
 
 
 @app.post("/detect")
@@ -94,7 +102,7 @@ async def detect(image_url: str):
         source_stem = Path(object_name).stem
         result_object_name = f"{source_stem}_detected.jpg"
         upload_image_cv2(RESULT_BUCKET_NAME, result_object_name, plotted_image)
-        result_image_url = f"{MINIO_PUBLIC_URI}/{RESULT_BUCKET_NAME}/{result_object_name}"
+        result_image_url = f"{_get_result_base_url(image_url)}/{RESULT_BUCKET_NAME}/{result_object_name}"
 
         return {
             "code": 0,

@@ -8,14 +8,12 @@ from typing import Any
 from src import config
 from src.agents.common.toolkits.agrochemicals import get_agrochemical_by_name
 from src.agents.common.toolkits.yolo import yolo
-from src.agents.common.toolkits.calculator import calculator
-from src.agents.common.toolkits.human_approval import get_approved_user_goal
-from src.agents.common.toolkits.image_gen import text_to_img_demo
 from src.agents.common.toolkits.kg_query import query_knowledge_graph
+from src.agents.common.toolkits.graph_search import query_subgraph
 from src.agents.common.toolkits.knowledge_base.tool import get_kb_based_tools
 from src.agents.common.toolkits.weather_v2.tools import weather_forecast
 from src.agents.common.toolkits.web_search.tool import get_tavily_search
-from src.services.mcp_service import get_enabled_mcp_tools
+
 
 logger = logging.getLogger(__name__)
 
@@ -83,18 +81,11 @@ def get_buildin_tools() -> list:
     """
     static_tools = [
         query_knowledge_graph,
-        get_approved_user_goal,
-        calculator,
-        text_to_img_demo,
+        query_subgraph,
         weather_forecast,
         yolo,
         get_agrochemical_by_name,
     ]
-
-    # subagents 工具 - 延迟导入避免循环依赖
-    from src.agents.common.subagents import calc_agent_tool
-
-    static_tools.append(calc_agent_tool)
 
     # 检查是否启用网页搜索
     if config.enable_web_search:
@@ -109,7 +100,7 @@ async def get_tools_from_context(context, extra_tools=None) -> list:
     """从上下文配置中获取工具列表。
 
     Args:
-        context: 上下文对象，包含 tools, knowledges, mcps 配置
+        context: 上下文对象，包含 tools, knowledges 配置
         extra_tools: 额外的工具列表
 
     Returns:
@@ -129,11 +120,5 @@ async def get_tools_from_context(context, extra_tools=None) -> list:
     if context.knowledges:
         kb_tools = get_kb_based_tools(db_names=context.knowledges)
         selected_tools.extend(kb_tools)
-
-    # 3. MCP 工具
-    if context.mcps:
-        for server_name in context.mcps:
-            mcp_tools = await get_enabled_mcp_tools(server_name)
-            selected_tools.extend(mcp_tools)
 
     return selected_tools

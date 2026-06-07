@@ -1,11 +1,7 @@
 <template>
   <div class="image-preview" v-if="imageData">
     <div class="image-container">
-      <img
-          :src="imageData.imageUrl"
-          :alt="imageData.originalName"
-          class="preview-image"
-      />
+      <img :src="imageData.imageUrl" :alt="imageData.originalName" class="preview-image" />
       <button class="remove-button" @click="handleRemove">
         <X />
       </button>

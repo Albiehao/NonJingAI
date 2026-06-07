@@ -66,8 +66,7 @@ docs/vibe
 .cursorrules
 
 /models
-/docker/volumes.7z
-/docker/volumes_compress_202605292020.tar.gz
-
-# 临时项目，后续删除
-crop-management-system/
+/bash.exe.stackdump
+/images.tar
+/docker/images
+/docker-images

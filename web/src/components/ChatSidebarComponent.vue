@@ -39,7 +39,12 @@
               :class="{ active: currentChatId === chat.id }"
               @click="selectChat(chat)"
             >
-              <div class="conversation-title">{{ chat.title || '新的对话' }}</div>
+              <div class="conversation-title">
+                <span class="title-text">{{ chat.title || '新的对话' }}</span>
+                <span class="agent-badge" v-if="chat.agent_id">
+                  {{ getAgentName(chat.agent_id) }}
+                </span>
+              </div>
               <div class="actions-mask"></div>
               <div class="conversation-actions">
                 <a-dropdown :trigger="['click']" @click.stop>
@@ -69,7 +74,13 @@
             </div>
           </div>
         </template>
-        <div v-else class="empty-list">暂无对话历史</div>
+        <div v-else class="empty-list">
+          <div class="empty-illustration">
+            <Sprout :size="26" />
+          </div>
+          <p class="empty-title">暂无对话历史</p>
+          <p class="empty-hint">创建新对话，开始第一次农技咨询</p>
+        </div>
       </div>
     </div>
   </div>
@@ -79,7 +90,7 @@
 import { computed, h } from 'vue'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons-vue'
 import { message, Modal } from 'ant-design-vue'
-import { PanelLeftClose, MessageSquarePlus, LoaderCircle } from 'lucide-vue-next'
+import { PanelLeftClose, MessageSquarePlus, LoaderCircle, Sprout } from 'lucide-vue-next'
 import dayjs, { parseToShanghai } from '@/utils/time'
 import { useChatUIStore } from '@/stores/chatUI'
 import { useInfoStore } from '@/stores/info'
@@ -237,13 +248,21 @@ const renameChat = async (chatId) => {
 const toggleCollapse = () => {
   emit('toggle-sidebar')
 }
+
+const getAgentName = (agentId) => {
+  const agent = props.agents.find((a) => a.id === agentId)
+  return agent ? agent.name : ''
+}
 </script>
 
 <style lang="less" scoped>
 .chat-sidebar {
+  position: relative;
+  isolation: isolate;
   width: 0;
   height: 100%;
-  background-color: var(--gray-0);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -251,6 +270,8 @@ const toggleCollapse = () => {
   overflow: hidden;
 
   .sidebar-content {
+    position: relative;
+    z-index: 1;
     // 保持内部宽度，避免折叠时压缩
     width: 280px;
     min-width: 280px;
@@ -276,7 +297,7 @@ const toggleCollapse = () => {
   &.sidebar-open {
     width: 280px;
     max-width: 300px;
-    border-right: 1px solid var(--gray-200);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .sidebar-header {
@@ -285,13 +306,14 @@ const toggleCollapse = () => {
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    border-bottom: 1px solid var(--gray-50);
+    border-bottom: none;
+    background: transparent;
     flex-shrink: 0;
 
     .header-title {
-      font-weight: 600;
+      font-weight: 700;
       font-size: 16px;
-      color: var(--gray-900);
+      color: var(--main-800);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -312,22 +334,24 @@ const toggleCollapse = () => {
 
     .new-chat-btn {
       width: 100%;
-      padding: 8px 12px;
+      padding: 10px 12px;
       border-radius: 8px;
-      background-color: var(--gray-0);
-      color: var(--main-color);
-      border: 1px solid var(--gray-150);
-      transition: all 0.2s ease;
-      font-weight: 500;
+      background: var(--gray-0);
+      color: var(--main-700);
+      border: 1px solid var(--main-400);
+      transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+      font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 3px 4px rgba(0, 10, 20, 0.02);
 
       &:hover:not(:disabled) {
-        box-shadow: 0 3px 4px rgba(0, 10, 20, 0.07);
+        background: var(--main-50);
+        border-color: var(--main-600);
       }
 
       &:disabled {
@@ -370,11 +394,14 @@ const toggleCollapse = () => {
     .conversation-item {
       display: flex;
       align-items: center;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin: 4px 0;
+      padding: 9px 12px;
+      border-radius: 8px;
+      margin: 3px 0;
+      border: 1px solid transparent;
       cursor: pointer;
-      transition: background-color 0.2s ease;
+      transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease;
       position: relative;
       overflow: hidden;
 
@@ -386,6 +413,25 @@ const toggleCollapse = () => {
         overflow: hidden;
         text-overflow: ellipsis;
         transition: color 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .title-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
+        }
+
+        .agent-badge {
+          flex-shrink: 0;
+          font-size: 11px;
+          color: var(--main-600);
+          background: var(--main-20);
+          padding: 1px 6px;
+          border-radius: 4px;
+          font-weight: 500;
+        }
       }
 
       .actions-mask {
@@ -394,7 +440,7 @@ const toggleCollapse = () => {
         top: 0;
         bottom: 0;
         width: 60px;
-        background: linear-gradient(to right, transparent, var(--bg-sider) 20px);
+        background: linear-gradient(to right, transparent, var(--main-10) 20px);
         opacity: 0;
         transition: opacity 0.3s ease;
         pointer-events: none;
@@ -422,10 +468,11 @@ const toggleCollapse = () => {
       }
 
       &:hover {
-        background-color: var(--gray-25);
+        background-color: var(--gray-0);
+        border-color: var(--gray-100);
 
         .actions-mask {
-          background: linear-gradient(to right, transparent, var(--gray-25) 20px);
+          background: linear-gradient(to right, transparent, var(--gray-0) 20px);
         }
 
         .actions-mask,
@@ -435,23 +482,54 @@ const toggleCollapse = () => {
       }
 
       &.active {
-        background-color: var(--gray-50);
+        background-color: var(--main-50);
+        border-color: var(--main-100);
+        border-left: 3px solid var(--main-600);
+        padding-left: 10px;
 
         .conversation-title {
-          color: var(--main-600);
-          font-weight: 500;
+          color: var(--main-700);
+          font-weight: 600;
         }
         .actions-mask {
-          background: linear-gradient(to right, transparent, var(--gray-50) 20px);
+          background: linear-gradient(to right, transparent, var(--main-50) 20px);
         }
       }
     }
 
     .empty-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       text-align: center;
-      margin-top: 20px;
-      color: var(--gray-500);
-      font-size: 14px;
+      margin: 24px 12px 0;
+      padding: 16px 12px;
+
+      .empty-illustration {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+        background: rgba(237, 245, 233, 0.8);
+        color: var(--main-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .empty-title {
+        margin: 0 0 6px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray-700);
+      }
+
+      .empty-hint {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--gray-500);
+      }
     }
   }
 }
@@ -488,5 +566,22 @@ const toggleCollapse = () => {
   &:hover svg {
     stroke: var(--main-color);
   }
+}
+</style>
+
+<style lang="less">
+/* ========== Dark Mode ========== */
+:root.dark .empty-illustration {
+  background: rgba(10, 30, 10, 0.6) !important;
+}
+
+:root.dark .sidebar-header .header-title {
+  color: var(--main-500) !important;
+}
+
+:root.dark .new-chat-btn {
+  background: rgba(30, 30, 30, 0.8) !important;
+  border-color: rgba(74, 175, 78, 0.3) !important;
+  color: var(--main-400) !important;
 }
 </style>

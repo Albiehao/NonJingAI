@@ -56,7 +56,7 @@
             <a-space>
               <a-input
                 v-model:value="filters.user_id"
-                placeholder="用户ID"
+                placeholder="用户名"
                 size="small"
                 style="width: 120px"
                 @change="handleFilterChange"

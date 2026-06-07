@@ -1,4 +1,5 @@
 from io import BytesIO
+from urllib.request import urlopen
 
 import cv2
 import numpy as np
@@ -14,14 +15,14 @@ client = Minio(
 
 
 def get_image_cv2(bucket_name: str, object_name: str):
-    """从 MinIO 读取图片并解码为 OpenCV 对象。"""
-    response = client.get_object(bucket_name, object_name)
-    try:
-        image_bytes = response.read()
-    finally:
-        response.close()
-        response.release_conn()
+    """从 MinIO 读取图片并解码为 OpenCV 对象。
 
+    通过 API 代理的 HTTP 接口下载，避免 MinIO 直连的路径问题。
+    """
+    api_host = "http://api:5050"
+    url = f"{api_host}/api/storage/{bucket_name}/{object_name}"
+    resp = urlopen(url, timeout=30)
+    image_bytes = resp.read()
     image_array = np.frombuffer(image_bytes, dtype=np.uint8)
     return cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 

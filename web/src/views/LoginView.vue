@@ -14,219 +14,139 @@
       </div>
     </div>
 
-    <!-- 顶部导航：品牌名称 & 操作按钮 -->
-    <nav class="login-navbar">
-      <div class="navbar-content">
-        <div class="brand-container">
-          <h1 class="brand-text">
-            <span v-if="brandOrgName" class="brand-org">{{ brandOrgName }}</span>
-            <span v-if="brandOrgName && brandName !== brandOrgName" class="brand-separator"></span>
-            <span class="brand-main">{{ brandName }}</span>
-          </h1>
-        </div>
-        <div class="login-top-action">
-          <a-button type="text" size="small" class="back-home-btn" @click="goHome">
-            返回首页
-          </a-button>
-        </div>
-      </div>
-    </nav>
+    <div class="login-container">
+      <LoginBanner />
 
-    <!-- 主要内容区：居中卡片 -->
-    <main class="login-main">
-      <div class="login-card">
-        <!-- 左侧图片 -->
-        <div class="card-side is-image">
-          <img :src="loginBgImage" alt="登录背景" class="login-bg-image" />
-        </div>
+      <!-- 右侧登录 -->
+      <div class="login-panel">
+        <div class="panel-inner">
+          <!-- 返回首页 -->
+          <div class="panel-nav">
+            <a-button type="text" class="back-btn" @click="goHome">
+              <left-outlined /> 返回首页
+            </a-button>
+          </div>
 
-        <!-- 右侧表单 -->
-        <div class="card-side is-form">
-          <div class="form-wrapper">
-            <header class="form-header">
-              <p class="welcome-text">欢迎登录</p>
-              <!-- 如果是在初始化，显示特定标题 -->
-              <h2 v-if="isFirstRun" class="init-title">系统初始化，请创建超级管理员</h2>
-            </header>
-
-            <div class="login-content" :class="{ 'is-initializing': isFirstRun }">
-              <!-- 初始化管理员表单 -->
-              <div v-if="isFirstRun" class="login-form login-form--init">
-                <a-form :model="adminForm" @finish="handleInitialize" layout="vertical">
-                  <a-form-item
-                    label="用户ID"
-                    name="user_id"
-                    :rules="[
-                      { required: true, message: '请输入用户ID' },
-                      {
-                        pattern: /^[a-zA-Z0-9_]+$/,
-                        message: '用户ID只能包含字母、数字和下划线'
-                      },
-                      {
-                        min: 3,
-                        max: 20,
-                        message: '用户ID长度必须在3-20个字符之间'
-                      }
-                    ]"
-                  >
-                    <a-input
-                      v-model:value="adminForm.user_id"
-                      placeholder="请输入用户ID（3-20个字符）"
-                      :maxlength="20"
-                    />
-                  </a-form-item>
-
-                  <a-form-item
-                    label="手机号（可选）"
-                    name="phone_number"
-                    :rules="[
-                      {
-                        validator: async (rule, value) => {
-                          if (!value || value.trim() === '') {
-                            return // 空值允许
-                          }
-                          const phoneRegex = /^1[3-9]\d{9}$/
-                          if (!phoneRegex.test(value)) {
-                            throw new Error('请输入正确的手机号格式')
-                          }
-                        }
-                      }
-                    ]"
-                  >
-                    <a-input
-                      v-model:value="adminForm.phone_number"
-                      placeholder="可用于登录，可不填写"
-                      :max-length="11"
-                    />
-                  </a-form-item>
-
-                  <a-form-item
-                    label="密码"
-                    name="password"
-                    :rules="[{ required: true, message: '请输入密码' }]"
-                  >
-                    <a-input-password v-model:value="adminForm.password" prefix-icon="lock" />
-                  </a-form-item>
-
-                  <a-form-item
-                    label="确认密码"
-                    name="confirmPassword"
-                    :rules="[
-                      { required: true, message: '请确认密码' },
-                      { validator: validateConfirmPassword }
-                    ]"
-                  >
-                    <a-input-password
-                      v-model:value="adminForm.confirmPassword"
-                      prefix-icon="lock"
-                    />
-                  </a-form-item>
-
-                  <a-form-item>
-                    <a-button type="primary" html-type="submit" :loading="loading" block
-                      >创建管理员账户</a-button
-                    >
-                  </a-form-item>
-                </a-form>
-              </div>
-
-              <!-- 登录表单 -->
-              <div v-else class="login-form">
-                <a-form :model="loginForm" @finish="handleLogin" layout="vertical">
-                  <a-form-item
-                    label="登录账号"
-                    name="loginId"
-                    :rules="[{ required: true, message: '请输入用户ID或手机号' }]"
-                  >
-                    <a-input v-model:value="loginForm.loginId" placeholder="用户ID或手机号">
-                      <template #prefix>
-                        <user-outlined />
-                      </template>
-                    </a-input>
-                  </a-form-item>
-
-                  <a-form-item
-                    label="密码"
-                    name="password"
-                    :rules="[{ required: true, message: '请输入密码' }]"
-                  >
-                    <a-input-password v-model:value="loginForm.password">
-                      <template #prefix>
-                        <lock-outlined />
-                      </template>
-                    </a-input-password>
-                  </a-form-item>
-
-                  <a-form-item>
-                    <div class="login-options">
-                      <a-checkbox v-model:checked="rememberMe" @click="showDevMessage"
-                        >记住我</a-checkbox
-                      >
-                      <a class="forgot-password" @click="showDevMessage">忘记密码?</a>
-                    </div>
-                  </a-form-item>
-
-                  <a-form-item>
-                    <a-button
-                      type="primary"
-                      html-type="submit"
-                      :loading="loading"
-                      :disabled="isLocked"
-                      block
-                      size="large"
-                    >
-                      <span v-if="isLocked">账户已锁定 {{ formatTime(lockRemainingTime) }}</span>
-                      <span v-else>登录</span>
-                    </a-button>
-                  </a-form-item>
-
-                  <!-- 第三方登录选项 -->
-                  <div class="third-party-login">
-                    <div class="divider">
-                      <span>其他登录方式</span>
-                    </div>
-                    <div class="login-icons">
-                      <a-tooltip title="微信登录">
-                        <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                          <template #icon><wechat-outlined /></template>
-                        </a-button>
-                      </a-tooltip>
-                      <a-tooltip title="企业微信登录">
-                        <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                          <template #icon><qrcode-outlined /></template>
-                        </a-button>
-                      </a-tooltip>
-                      <a-tooltip title="飞书登录">
-                        <a-button shape="circle" class="login-icon" @click="showDevMessage">
-                          <template #icon><thunderbolt-outlined /></template>
-                        </a-button>
-                      </a-tooltip>
-                    </div>
-                  </div>
-                </a-form>
-              </div>
-
-              <!-- 错误提示 -->
-              <div v-if="errorMessage" class="error-message">
-                {{ errorMessage }}
-              </div>
+          <!-- 表单区域 -->
+          <div class="panel-form">
+            <div class="form-header">
+              <h2 class="form-title">欢迎登录</h2>
+              <p class="form-subtitle">请使用您的账号登录系统</p>
+              <p v-if="isFirstRun" class="init-hint">系统初始化，请创建超级管理员</p>
             </div>
+
+            <!-- 初始化管理员表单 -->
+            <div v-if="isFirstRun" class="form-body">
+              <a-form :model="adminForm" @finish="handleInitialize" layout="vertical">
+                <a-form-item
+                  label="用户ID"
+                  name="user_id"
+                  :rules="[
+                    { required: true, message: '请输入用户ID' },
+                    { pattern: /^[a-zA-Z0-9_]+$/, message: '用户ID只能包含字母、数字和下划线' },
+                    { min: 3, max: 20, message: '用户ID长度必须在3-20个字符之间' }
+                  ]"
+                >
+                  <a-input v-model:value="adminForm.user_id" placeholder="请输入用户ID（3-20个字符）" :maxlength="20" />
+                </a-form-item>
+
+                <a-form-item
+                  label="邮箱（用于接收通知）"
+                  name="email"
+                  :rules="[{ type: 'email', message: '请输入正确的邮箱格式' }]"
+                >
+                  <a-input v-model:value="adminForm.email" placeholder="超级管理员邮箱，可不填" />
+                </a-form-item>
+
+                <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }]">
+                  <a-input-password v-model:value="adminForm.password" />
+                </a-form-item>
+
+                <a-form-item
+                  label="确认密码"
+                  name="confirmPassword"
+                  :rules="[
+                    { required: true, message: '请确认密码' },
+                    { validator: validateConfirmPassword }
+                  ]"
+                >
+                  <a-input-password v-model:value="adminForm.confirmPassword" />
+                </a-form-item>
+
+                <a-form-item>
+                  <a-button type="primary" html-type="submit" :loading="loading" block size="large">
+                    创建管理员账户
+                  </a-button>
+                </a-form-item>
+              </a-form>
+            </div>
+
+            <!-- 登录表单 -->
+            <div v-else class="form-body">
+              <a-form :model="loginForm" @finish="handleLogin" layout="vertical">
+                <a-form-item
+                  name="loginId"
+                  :rules="[
+                    { required: true, message: '请输入邮箱或用户名' }
+                  ]"
+                >
+                  <a-input v-model:value="loginForm.loginId" placeholder="邮箱或用户名" size="large">
+                    <template #prefix><user-outlined /></template>
+                  </a-input>
+                </a-form-item>
+
+                <a-form-item name="password" :rules="[{ required: true, message: '请输入密码' }]">
+                  <a-input-password v-model:value="loginForm.password" placeholder="密码" size="large">
+                    <template #prefix><lock-outlined /></template>
+                  </a-input-password>
+                </a-form-item>
+
+                <a-form-item>
+                  <div class="form-options">
+                    <a-checkbox v-model:checked="rememberMe" @click="showDevMessage">记住我</a-checkbox>
+                    <a class="forgot-link" @click="showDevMessage">忘记密码?</a>
+                  </div>
+                </a-form-item>
+
+                <a-form-item>
+                  <a-button
+                    type="primary"
+                    html-type="submit"
+                    :loading="loading"
+                    :disabled="isLocked"
+                    block
+                    size="large"
+                    class="login-btn"
+                  >
+                    <span v-if="isLocked">账户已锁定 {{ formatTime(lockRemainingTime) }}</span>
+                    <span v-else>登 录</span>
+                  </a-button>
+                </a-form-item>
+
+                <div class="form-footer-links">
+                  <span class="register-hint">
+                    还没有账号？<a @click="goRegister">立即注册</a>
+                  </span>
+                </div>
+
+              </a-form>
+
+              <div v-if="errorMessage" class="error-msg">{{ errorMessage }}</div>
+            </div>
+          </div>
+
+          <!-- 版权 -->
+          <div class="panel-footer">
+            &copy; {{ new Date().getFullYear() }} {{ brandName }}. All Rights Reserved.
           </div>
         </div>
       </div>
-    </main>
-
-    <!-- 页面底部：版权信息等 -->
-    <footer class="page-footer">
-      <div class="copyright">
-        &copy; {{ new Date().getFullYear() }} {{ brandName }}. All Rights Reserved.
-      </div>
-    </footer>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useInfoStore } from '@/stores/info'
@@ -236,42 +156,21 @@ import { healthApi } from '@/apis/system_api'
 import {
   UserOutlined,
   LockOutlined,
-  WechatOutlined,
-  QrcodeOutlined,
-  ThunderboltOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  LeftOutlined
 } from '@ant-design/icons-vue'
+import LoginBanner from '@/components/LoginBanner.vue'
+
 const router = useRouter()
 const userStore = useUserStore()
 const infoStore = useInfoStore()
 const agentStore = useAgentStore()
 
-// 品牌展示数据
-const loginBgImage = computed(() => {
-  return infoStore.organization?.login_bg || '/login-bg.jpg'
-})
-const brandOrgName = computed(() => {
-  return infoStore.organization?.name?.trim() || ''
-})
 const brandName = computed(() => {
-  const orgName = brandOrgName.value
+  const orgName = infoStore.organization?.name?.trim() || ''
   const brandNameRaw = infoStore.branding?.name?.trim() || 'QianXun'
-
-  if (orgName && brandNameRaw && orgName !== brandNameRaw) {
-    return brandNameRaw
-  }
-
+  if (orgName && brandNameRaw && orgName !== brandNameRaw) return brandNameRaw
   return orgName || brandNameRaw
-})
-const brandSubtitle = computed(() => {
-  const rawSubtitle = infoStore.branding?.subtitle ?? ''
-  const trimmed = rawSubtitle.trim()
-  return trimmed || '大模型驱动的知识库管理工具'
-})
-const brandDescription = computed(() => {
-  const rawDescription = infoStore.branding?.description ?? ''
-  const trimmed = rawDescription.trim()
-  return trimmed || '结合知识库与知识图谱，提供更准确、更全面的回答'
 })
 
 // 状态
@@ -283,26 +182,25 @@ const serverStatus = ref('loading')
 const serverError = ref('')
 const healthChecking = ref(false)
 
-// 登录锁定相关状态
+// 登录锁定
 const isLocked = ref(false)
 const lockRemainingTime = ref(0)
 const lockCountdown = ref(null)
 
 // 登录表单
 const loginForm = reactive({
-  loginId: '', // 支持user_id或phone_number登录
+  loginId: '',
   password: ''
 })
 
 // 管理员初始化表单
 const adminForm = reactive({
-  user_id: '', // 改为直接输入user_id
+  user_id: '',
   password: '',
   confirmPassword: '',
-  phone_number: '' // 手机号字段（可选）
+  email: ''
 })
 
-// 开发中功能提示
 const showDevMessage = () => {
   message.info('该功能正在开发中，敬请期待！')
 }
@@ -311,7 +209,10 @@ const goHome = () => {
   router.push('/')
 }
 
-// 清理倒计时器
+const goRegister = () => {
+  router.push('/register')
+}
+
 const clearLockCountdown = () => {
   if (lockCountdown.value) {
     clearInterval(lockCountdown.value)
@@ -319,12 +220,10 @@ const clearLockCountdown = () => {
   }
 }
 
-// 启动锁定倒计时
 const startLockCountdown = (remainingSeconds) => {
   clearLockCountdown()
   isLocked.value = true
   lockRemainingTime.value = remainingSeconds
-
   lockCountdown.value = setInterval(() => {
     lockRemainingTime.value--
     if (lockRemainingTime.value <= 0) {
@@ -335,118 +234,72 @@ const startLockCountdown = (remainingSeconds) => {
   }, 1000)
 }
 
-// 格式化时间显示
 const formatTime = (seconds) => {
-  if (seconds < 60) {
-    return `${seconds}秒`
-  } else if (seconds < 3600) {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}分${remainingSeconds}秒`
-  } else if (seconds < 86400) {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours}小时${minutes}分钟`
-  } else {
-    const days = Math.floor(seconds / 86400)
-    const hours = Math.floor((seconds % 86400) / 3600)
-    return `${days}天${hours}小时`
+  if (seconds < 60) return `${seconds}秒`
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}分${s}秒`
   }
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  return `${h}小时${m}分钟`
 }
 
-// 密码确认验证
 const validateConfirmPassword = async (rule, value) => {
-  if (value === '') {
-    throw new Error('请确认密码')
-  }
-  if (value !== adminForm.password) {
-    throw new Error('两次输入的密码不一致')
-  }
+  if (value === '') throw new Error('请确认密码')
+  if (value !== adminForm.password) throw new Error('两次输入的密码不一致')
 }
 
-// 处理登录
 const handleLogin = async () => {
-  // 如果当前被锁定，不允许登录
   if (isLocked.value) {
     message.warning(`账户被锁定，请等待 ${formatTime(lockRemainingTime.value)}`)
     return
   }
-
   try {
     loading.value = true
     errorMessage.value = ''
     clearLockCountdown()
-
-    await userStore.login({
-      loginId: loginForm.loginId,
-      password: loginForm.password
-    })
-
+    await userStore.login({ loginId: loginForm.loginId, password: loginForm.password })
     message.success('登录成功')
-
-    // 获取重定向路径
     const redirectPath = sessionStorage.getItem('redirect') || '/'
-    sessionStorage.removeItem('redirect') // 清除重定向信息
-
-    // 根据用户角色决定重定向目标
+    sessionStorage.removeItem('redirect')
     if (redirectPath === '/') {
-      // 如果是管理员，直接跳转到/chat页面
       if (userStore.isAdmin) {
         router.push('/agent')
         return
       }
-
-      // 普通用户跳转到默认智能体
       try {
-        // 初始化agentStore并获取智能体信息
         await agentStore.initialize()
-
-        // 尝试获取默认智能体
         if (agentStore.defaultAgentId) {
-          // 如果存在默认智能体，直接跳转
           router.push(`/agent/${agentStore.defaultAgentId}`)
           return
         }
-
-        // 没有默认智能体，获取第一个可用智能体
         const agentIds = Object.keys(agentStore.agents)
         if (agentIds.length > 0) {
           router.push(`/agent/${agentIds[0]}`)
           return
         }
-
-        // 没有可用智能体，回退到首页
         router.push('/')
-      } catch (error) {
-        console.error('获取智能体信息失败:', error)
+      } catch (e) {
+        console.error('获取智能体信息失败:', e)
         router.push('/')
       }
     } else {
-      // 跳转到其他预设的路径
       router.push(redirectPath)
     }
   } catch (error) {
     console.error('登录失败:', error)
-
-    // 检查是否是锁定错误（HTTP 423）
     if (error.status === 423) {
-      // 尝试从响应头中获取剩余时间
       let remainingTime = 0
       if (error.headers && error.headers.get) {
-        const lockRemainingHeader = error.headers.get('X-Lock-Remaining')
-        if (lockRemainingHeader) {
-          remainingTime = parseInt(lockRemainingHeader)
-        }
+        const h = error.headers.get('X-Lock-Remaining')
+        if (h) remainingTime = parseInt(h)
       }
-
-      // 如果没有从头中获取到，尝试从错误消息中解析
       if (remainingTime === 0) {
-        const lockTimeMatch = error.message.match(/(\d+)\s*秒/)
-        if (lockTimeMatch) {
-          remainingTime = parseInt(lockTimeMatch[1])
-        }
+        const m = error.message.match(/(\d+)\s*秒/)
+        if (m) remainingTime = parseInt(m[1])
       }
-
       if (remainingTime > 0) {
         startLockCountdown(remainingTime)
         errorMessage.value = `由于多次登录失败，账户已被锁定 ${formatTime(remainingTime)}`
@@ -461,23 +314,19 @@ const handleLogin = async () => {
   }
 }
 
-// 处理初始化管理员
 const handleInitialize = async () => {
   try {
     loading.value = true
     errorMessage.value = ''
-
     if (adminForm.password !== adminForm.confirmPassword) {
       errorMessage.value = '两次输入的密码不一致'
       return
     }
-
     await userStore.initialize({
       user_id: adminForm.user_id,
       password: adminForm.password,
-      phone_number: adminForm.phone_number || null // 空字符串转为null
+      email: adminForm.email || null
     })
-
     message.success('管理员账户创建成功')
     router.push('/')
   } catch (error) {
@@ -488,12 +337,10 @@ const handleInitialize = async () => {
   }
 }
 
-// 检查是否是首次运行
 const checkFirstRunStatus = async () => {
   try {
     loading.value = true
-    const isFirst = await userStore.checkFirstRun()
-    isFirstRun.value = isFirst
+    isFirstRun.value = await userStore.checkFirstRun()
   } catch (error) {
     console.error('检查首次运行状态失败:', error)
     errorMessage.value = '系统出错，请稍后重试'
@@ -502,7 +349,6 @@ const checkFirstRunStatus = async () => {
   }
 }
 
-// 检查服务器健康状态
 const checkServerHealth = async () => {
   try {
     healthChecking.value = true
@@ -522,22 +368,15 @@ const checkServerHealth = async () => {
   }
 }
 
-// 组件挂载时
 onMounted(async () => {
-  // 如果已登录，跳转到首页
   if (userStore.isLoggedIn) {
     router.push('/')
     return
   }
-
-  // 首先检查服务器健康状态
   await checkServerHealth()
-
-  // 检查是否是首次运行
   await checkFirstRunStatus()
 })
 
-// 组件卸载时清理定时器
 onUnmounted(() => {
   clearLockCountdown()
 })
@@ -547,274 +386,202 @@ onUnmounted(() => {
 .login-view {
   min-height: 100vh;
   width: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--gray-10);
-  background-image: radial-gradient(var(--gray-200) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background: var(--gray-10);
 
   &.has-alert {
-    padding-top: 60px;
+    .login-container {
+      height: calc(100vh - 60px);
+    }
   }
 }
 
-/* Unified Navbar */
-.login-navbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  padding: 32px 0;
-  z-index: 10;
-
-  .navbar-content {
-    max-width: 1500px; /* Constraint the width */
-    margin: 0 auto;
-    padding: 0 40px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-}
-
-.brand-text {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1;
+.login-container {
   display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .brand-org {
-    color: var(--gray-700);
-    font-weight: 600;
-  }
-
-  .brand-separator {
-    width: 4px;
-    height: 4px;
-    background-color: var(--gray-400);
-    border-radius: 50%;
-    font-weight: 600;
-  }
-
-  .brand-main {
-    color: var(--main-color);
-    font-weight: 600;
-  }
+  height: 100vh;
 }
 
-.back-home-btn {
-  color: var(--gray-600);
-  font-size: 14px;
-  &:hover {
-    color: var(--main-color);
-    background-color: transparent;
-  }
-}
-
-/* Main Content: Card Layout */
-.login-main {
+/* ===== 右侧登录面板 ===== */
+.login-panel {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  padding-top: 80px; /* Add space for navbar */
-}
-
-.login-card {
-  width: 900px;
-  max-width: 95vw;
-  height: 560px;
-  max-height: 80vh;
+  min-width: 560px;
+  max-width: 50%;
   background: var(--gray-0);
-  border-radius: 16px;
-  box-shadow: 0 0px 40px var(--shadow-1);
-  display: flex;
-  overflow: hidden;
-}
-
-.card-side {
-  position: relative;
-}
-
-/* Image Side */
-.card-side.is-image {
-  flex: 1.4;
-  background-color: var(--main-10);
-  overflow: hidden;
-
-  .login-bg-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-  }
-}
-
-/* Form Side */
-.card-side.is-form {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.form-wrapper {
-  width: 100%;
-  max-width: 320px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  @media (max-width: 1024px) {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.panel-nav {
+  flex-shrink: 0;
+
+  .back-btn {
+    color: var(--gray-500);
+    font-size: 14px;
+    padding: 4px 8px;
+    height: auto;
+
+    &:hover {
+      color: var(--main-color);
+      background: transparent;
+    }
+  }
+}
+
+.panel-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .form-header {
-  text-align: left;
-  .welcome-text {
-    font-size: 14px;
-    font-weight: 600;
+  margin-bottom: 40px;
+
+  .form-title {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 10px;
+    line-height: 1.2;
+  }
+
+  .form-subtitle {
+    font-size: 17px;
     color: var(--gray-500);
-    margin-bottom: 4px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .init-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--main-color);
     margin: 0;
-    line-height: 1.4;
   }
-}
 
-.login-form {
-  :deep(.ant-input-affix-wrapper) {
-    padding: 10px 12px;
-    border-radius: 8px;
-  }
-  :deep(.ant-btn) {
-    height: 44px;
+  .init-hint {
+    margin: 14px 0 0;
     font-size: 16px;
-    border-radius: 8px;
+    color: var(--main-color);
+    font-weight: 500;
   }
 }
 
-.third-party-login {
-  margin-top: 16px;
-  .divider {
-    position: relative;
-    text-align: center;
-    margin: 24px 0 16px;
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      width: 30%;
-      height: 1px;
-      background-color: var(--gray-200);
-    }
-    &::before {
-      left: 0;
-    }
-    &::after {
-      right: 0;
-    }
-    span {
-      display: inline-block;
-      padding: 0 8px;
-      background-color: var(--gray-0);
-      color: var(--gray-400);
-      font-size: 12px;
-    }
+.form-body {
+  width: 100%;
+}
+
+:deep(.ant-form-item) {
+  margin-bottom: 24px;
+}
+
+:deep(.ant-input-affix-wrapper) {
+  padding: 10px 16px;
+  border-radius: 4px;
+  border-color: var(--gray-300);
+
+  &:hover,
+  &:focus {
+    border-color: var(--main-color);
   }
 
-  .login-icons {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    .login-icon {
-      width: 36px;
-      height: 36px;
-      font-size: 18px;
-      color: var(--gray-500);
-      border-color: var(--gray-300);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      &:hover {
-        color: var(--main-color);
-        border-color: var(--main-color);
-        background-color: var(--main-10);
-        transform: translateY(-2px);
-      }
-    }
+  .anticon {
+    color: var(--gray-400);
+    font-size: 18px;
   }
 }
 
-.login-options {
+:deep(.ant-input) {
+  font-size: 17px;
+}
+
+:deep(.ant-input-password) {
+  border-radius: 4px;
+  border-color: var(--gray-300);
+}
+
+.form-options {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
-}
+  font-size: 13px;
 
-.forgot-password {
-  color: var(--main-color);
-  &:hover {
-    text-decoration: underline;
+  .forgot-link {
+    color: var(--main-color);
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 
-.error-message {
+.login-btn {
+  height: 48px;
+  font-size: 17px;
+  border-radius: 4px;
+  border-color: var(--color-primary-500) !important;
+  background-color: var(--color-primary-500) !important;
+}
+
+.login-btn:hover {
+  border-color: var(--color-primary-700) !important;
+  background-color: var(--color-primary-700) !important;
+}
+
+.form-footer-links {
+  text-align: center;
+
+  .register-hint {
+    font-size: 14px;
+    color: var(--gray-500);
+
+    a {
+      color: var(--main-color);
+    }
+  }
+}
+
+.error-msg {
   margin-top: 16px;
   padding: 10px 12px;
-  background-color: var(--color-error-50);
+  background: var(--color-error-50);
   border: 1px solid color-mix(in srgb, var(--color-error-500) 25%, transparent);
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--color-error-700);
   font-size: 13px;
   text-align: center;
 }
 
-/* Page Footer */
-.page-footer {
-  padding: 24px;
+.panel-footer {
+  flex-shrink: 0;
   text-align: center;
-}
-
-.footer-links {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 8px;
-
-  a {
-    color: var(--gray-500);
-    font-size: 13px;
-    &:hover {
-      color: var(--main-color);
-    }
-  }
-
-  .divider {
-    color: var(--gray-300);
-    font-size: 12px;
-  }
-}
-
-.copyright {
   font-size: 12px;
   color: var(--gray-400);
+  padding-top: 20px;
 }
 
-/* Server Status Alert */
+/* ===== 服务端错误提示 ===== */
 .server-status-alert {
   position: absolute;
   top: 0;
@@ -864,36 +631,21 @@ onUnmounted(() => {
   }
 }
 
-/* Responsive */
-@media (max-width: 1280px) {
-  .login-navbar .navbar-content {
-    padding: 0 40px;
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .login-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .panel-form {
+    max-width: 520px;
   }
 }
 
-@media (max-width: 768px) {
-  .login-navbar .navbar-content {
-    padding: 0 20px;
-  }
-
-  .brand-text {
-    font-size: 20px;
-  }
-
-  .login-card {
-    flex-direction: column;
-    height: auto;
-    max-height: none;
-    width: 100%;
-    margin-top: 20px;
-  }
-
-  .card-side.is-image {
-    display: none;
-  }
-
-  .card-side.is-form {
-    padding: 40px 20px;
+@media (max-width: 576px) {
+  .panel-inner {
+    padding: 24px 20px;
   }
 }
 </style>

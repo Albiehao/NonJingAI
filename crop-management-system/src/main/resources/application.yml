@@ -1,0 +1,66 @@
+# 应用程序配置
+spring:
+  application:
+    # 应用名称
+    name: cropmanagementsystem
+
+  # 数据库配置（PostgreSQL）
+  datasource:
+    url: jdbc:postgresql://postgres:5432/yuxi_know
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 60000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      pool-name: CropManagementPool
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+      enabled: true
+
+  # 静态资源配置
+  web:
+    resources:
+      static-locations: file:./uploads/
+
+# MyBatis 配置：下划线转驼峰
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+# MinIO 对象存储配置
+minio:
+  endpoint: http://minio:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  avatar-bucket: avatar
+  public-endpoint: http://localhost:9000
+
+# jwt
+jwt:
+  # 替换为32字节的有效密钥（示例：Base64编码的256位密钥）
+  secret: 546869734973415365637265744b6579466f724a57545369676e61747572653132
+  expiration: 3600000 # 1小时过期（毫秒）
+
+# AI 配置（OpenAI 兼容接口）
+ai:
+  openai:
+    # 基础URL，根据不同厂商修改：
+    # 智谱 AI: https://open.bigmodel.cn/api/paas/v4
+    # 通义千问: https://dashscope.aliyuncs.com/compatible-mode/v1
+    # 其他: 自行配置
+    base-url: https://coding.dashscope.aliyuncs.com/v1
+    api-key: sk-sp-fa4a22113c644bc79bab9e4d113e296e
+    model-name: qwen3.5-plus

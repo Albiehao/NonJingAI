@@ -3,9 +3,11 @@ services:
     build:
       context: .
       dockerfile: docker/api.Dockerfile
-    image: yuxi-api:0.5.prod
+    image: qian-yuxi-api:0.5.prod
     container_name: api-prod
     working_dir: /app
+    ports:
+      - "5050:5050"
     networks:
       - app-network
     volumes:
@@ -21,17 +23,31 @@ services:
       - NEO4J_USERNAME=${NEO4J_USERNAME:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-0123456789}
       - MILVUS_URI=${MILVUS_URI:-http://milvus:19530}
-      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
       - MILVUS_DB_NAME=${MILVUS_DB_NAME:-default}
+      - MILVUS_TOKEN=${MILVUS_TOKEN:-}
       - MINERU_VL_SERVER=${MINERU_VL_SERVER:-http://mineru-vllm-server:30000}
       - MINERU_API_URI=${MINERU_API_URI:-http://mineru-api:30001}
       - PADDLEX_URI=${PADDLEX_URI:-http://paddlex:8080}
-      - MINIO_URI=${MINIO_URI:-http://milvus-minio:9000}
+      - MINIO_URI=${MINIO_URI:-http://minio:9000}
       - MODEL_DIR_IN_DOCKER=/models
       - RUNNING_IN_DOCKER=true
-      - NO_PROXY=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn,qianxun-server,qianxun-db
-      - no_proxy=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn,qianxun-server,qianxun-db
+      - AMAP_KEY=${AMAP_KEY:-}
+      - CAIYUN_TOKEN=${CAIYUN_TOKEN:-}
+      - WECHAT_APP_ID=${WECHAT_APP_ID:-}
+      - WECHAT_APP_SECRET=${WECHAT_APP_SECRET:-}
+      - WECHAT_TOKEN=${WECHAT_TOKEN:-}
+      - WECHAT_ENCODING_AES_KEY=${WECHAT_ENCODING_AES_KEY:-}
+      - WECHAT_PROXY_URL=${WECHAT_PROXY_URL:-}
+      - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-千寻农业助手}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
       - CROP_BACKEND_URL=${QIANXUN_SERVER_URL:-http://qianxun-server:8080}
+      - STORAGE_PROXY_URL=qianxun.albie.cn
+      - NO_PROXY=localhost,127.0.0.1,milvus,graph,minio,etcd,mineru,paddlex,api.siliconflow.cn,qianxun-server,postgres
+      - no_proxy=localhost,127.0.0.1,milvus,graph,minio,etcd,mineru,paddlex,api.siliconflow.cn,qianxun-server,postgres
     command: uv run --no-dev uvicorn server.main:app --host 0.0.0.0 --port 5050
     restart: unless-stopped
     healthcheck:
@@ -51,10 +67,13 @@ services:
       context: .
       dockerfile: docker/web.Dockerfile
       target: production
-    image: yuxi-web:0.5.prod
+    image: qian-yuxi-web:0.5.prod
     container_name: web-prod
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - api
     networks:
@@ -62,6 +81,8 @@ services:
     environment:
       - NODE_ENV=production
       - VITE_API_URL=http://api:5050
+      - VITE_AMAP_KEY=${AMAP_KEY:-}
+      - VITE_AMAP_SECURITY_JS_CODE=${AMAP_SECURITY_JS_CODE:-}
     command: nginx -g "daemon off;"
     restart: unless-stopped
 
@@ -178,12 +199,12 @@ services:
     build:
       context: .
       dockerfile: docker/mineru.Dockerfile
-    image: mineru-vllm:latest
+    image: qian-mineru-vllm:latest
     container_name: mineru-vllm-server
     profiles:
       - all
     env_file:
-      - .env
+      - .env.prod
     environment:
       MINERU_MODEL_SOURCE: local
     entrypoint: mineru-vllm-server
@@ -211,12 +232,12 @@ services:
     build:
       context: .
       dockerfile: docker/mineru.Dockerfile
-    image: mineru-vllm:latest
+    image: qian-mineru-vllm:latest
     container_name: mineru-api
     profiles:
       - all
     env_file:
-      - .env
+      - .env.prod
     ports:
       - 30001:30001
     environment:
@@ -237,7 +258,7 @@ services:
     build:
       context: .
       dockerfile: docker/paddlex.Dockerfile
-    image: paddlex:latest
+    image: qian-paddlex:latest
     container_name: paddlex-ocr
     profiles:
       - all
@@ -264,16 +285,18 @@ services:
     build:
       context: .
       dockerfile: docker/yoloapi.Dockerfile
-    image: yolo-api:0.1.0
+    image: qian-yolo-api:0.1.0
     container_name: yolo-api
     depends_on:
       minio:
         condition: service_healthy
+    env_file:
+      - .env.prod
     environment:
       - RUNNING_IN_DOCKER=true
       - YOLO_MODEL_PATH=yolo.pt
       - MINIO_URI=http://minio:9000
-      - MINIO_PUBLIC_URI=http://localhost:9000
+      - MINIO_PUBLIC_URI=http://${HOST_IP}:5050/api/storage
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
     networks:
@@ -291,24 +314,27 @@ services:
     build:
       context: ./crop-management-system
       dockerfile: ../docker/qianxun-server.Dockerfile
-    image: qianxun-server:0.0.1.prod
+    image: qian-qianxun-server:0.0.1.prod
     container_name: qianxun-server
     working_dir: /build
     volumes:
+      - ./crop-management-system/src:/build/src
+      - ./crop-management-system/pom.xml:/build/pom.xml
       - ./crop-management-system/uploads:/build/uploads
       - maven-cache:/root/.m2
     networks:
       - app-network
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://qianxun-db:3306/CropManagementSystem?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&allowMultiQueries=true&zeroDateTimeBehavior=convertToNull&transformedBitIsBit=false
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${QIANXUN_DB_PASSWORD:-12345678}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/yuxi_know
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
       - TZ=Asia/Shanghai
       - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.siliconflow.cn/v1}
       - AI_OPENAI_API_KEY=${SILICONFLOW_API_KEY:-}
       - AI_OPENAI_MODEL_NAME=${AI_OPENAI_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}
+      - JAVA_TOOL_OPTIONS=-Dminio.public-endpoint=/api/storage
     depends_on:
-      qianxun-db:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -317,27 +343,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
-
-  # Qianxun 数据库
-  qianxun-db:
-    image: mysql:8.0
-    container_name: qianxun-db
-    environment:
-      - MYSQL_ROOT_PASSWORD=${QIANXUN_DB_PASSWORD:-12345678}
-      - MYSQL_DATABASE=CropManagementSystem
-      - TZ=Asia/Shanghai
-    volumes:
-      - ./docker/volumes/qianxun-db:/var/lib/mysql
-      - ./crop-management-system/CropManagementSystem.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${QIANXUN_DB_PASSWORD:-12345678}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks:
-      - app-network
-    restart: unless-stopped
 
 volumes:
   maven-cache:

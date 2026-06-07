@@ -1,12 +1,14 @@
 import re
 import uuid
+from datetime import timedelta
 from src.utils import logger
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.storage.postgres.manager import pg_manager
 from src.storage.postgres.models_business import User
@@ -36,6 +38,7 @@ class Token(BaseModel):
     username: str
     user_id_login: str  # 用于登录的user_id
     phone_number: str | None = None
+    email: str | None = None
     avatar: str | None = None
     role: str
     department_id: int | None = None
@@ -51,7 +54,9 @@ class UserCreate(BaseModel):
 class UserCreateRegister(BaseModel):
     username: str
     password: str
-    phone_number: str | None = None
+    role: str = "user"
+    email: str | None = None
+    email_code: str | None = None
 
 class UserUpdate(BaseModel):
     username: str | None = None
@@ -71,8 +76,15 @@ class UserResponse(BaseModel):
     username: str
     user_id: str
     phone_number: str | None = None
+    email: str | None = None
     avatar: str | None = None
     role: str
+    address: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    geohash_10km: str | None = None
+    geohash_20km: str | None = None
+    geohash: str | None = None
     created_at: str
     last_login: str | None = None
 
@@ -81,6 +93,7 @@ class InitializeAdmin(BaseModel):
     user_id: str  # 直接输入用户ID
     password: str
     phone_number: str | None = None
+    email: str | None = None
 
 
 class UsernameValidation(BaseModel):
@@ -100,16 +113,16 @@ class UserIdGeneration(BaseModel):
 
 @auth.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    # 查找用户 - 支持user_id和phone_number登录
+    # 查找用户 - 支持用户名或手机号码登录
     login_identifier = form_data.username  # OAuth2表单中的username字段作为登录标识符
 
-    # 尝试通过user_id查找
-    result = await db.execute(select(User).filter(User.user_id == login_identifier))
+    # 尝试通过手机号码查找
+    result = await db.execute(select(User).filter(User.phone_number == login_identifier))
     user = result.scalar_one_or_none()
 
-    # 如果通过user_id没找到，尝试通过phone_number查找
+    # 如果通过手机号码没找到，尝试通过用户名查找
     if not user:
-        result = await db.execute(select(User).filter(User.phone_number == login_identifier))
+        result = await db.execute(select(User).filter(User.username == login_identifier))
         user = result.scalar_one_or_none()
 
     # 如果用户不存在，为防止用户名枚举攻击，返回通用错误信息
@@ -180,12 +193,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         "username": user.username,
         "user_id_login": user.user_id,
         "phone_number": user.phone_number,
+        "email": user.email,
         "avatar": user.avatar,
         "role": user.role,
     }
 
 
-# 路由：校验是否需要初始化管理员
 @auth.get("/check-first-run")
 async def check_first_run():
     is_first_run = await pg_manager.async_check_first_run()
@@ -243,6 +256,14 @@ async def initialize_admin(admin_data: InitializeAdmin, db: AsyncSession = Depen
     token_data = {"sub": str(new_admin.id)}
     access_token = AuthUtils.create_access_token(token_data)
 
+    # 如果提供了邮箱，自动绑定（超级管理员免验证）
+    if admin_data.email:
+        await db.execute(
+            text("UPDATE users SET email = :email, email_verified = TRUE WHERE id = :uid"),
+            {"email": admin_data.email.strip(), "uid": new_admin.id},
+        )
+        await db.commit()
+
     # 记录操作
     await log_operation(db, new_admin.id, "系统初始化", "创建超级管理员账户")
 
@@ -255,6 +276,7 @@ async def initialize_admin(admin_data: InitializeAdmin, db: AsyncSession = Depen
         "phone_number": new_admin.phone_number,
         "avatar": new_admin.avatar,
         "role": new_admin.role,
+        "email": admin_data.email or new_admin.email,
     }
 
 
@@ -338,7 +360,7 @@ async def update_profile(
 # =============================================================================
 @auth.post("/register", status_code=201)
 async def register_user(
-    user_data: UserCreate,
+    user_data: UserCreateRegister,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
@@ -350,7 +372,7 @@ async def register_user(
     # 1. 参数处理
     # ========================
     username = user_data.username.lower().strip()
-    phone = user_data.phone_number.strip() if user_data.phone_number else None
+    email = user_data.email.lower().strip() if user_data.email else None
 
     # 用户名校验（用你现有的）
     is_valid, error_msg = validate_username(username)
@@ -364,38 +386,75 @@ async def register_user(
             },
         )
 
-    # 手机号校验（用你现有的）
-    if phone and not is_valid_phone_number(phone):
+    # 邮箱校验
+    if not email:
         raise HTTPException(
             status_code=422,
             detail={
                 "code": 422,
                 "message": "参数校验失败",
-                "errors": [{"field": "phone_number", "reason": "手机号格式不正确"}],
+                "errors": [{"field": "email", "reason": "邮箱为必填项"}],
             },
         )
 
     # ========================
-    # 2. 强制角色（防提权）
+    # 2. 验证邮箱验证码
+    # ========================
+    code_record = _registration_codes.get(email)
+    if not code_record:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "message": "请先发送验证码",
+                "errors": [{"field": "email_code", "reason": "请先发送验证码"}],
+            },
+        )
+    if code_record["expires_at"] < utc_now_naive():
+        _registration_codes.pop(email, None)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "message": "验证码已过期",
+                "errors": [{"field": "email_code", "reason": "验证码已过期，请重新发送"}],
+            },
+        )
+    if code_record["code"] != user_data.email_code:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "message": "验证码错误",
+                "errors": [{"field": "email_code", "reason": "验证码错误"}],
+            },
+        )
+
+    # 验证码通过，清除
+    _registration_codes.pop(email, None)
+
+    # ========================
+    # 3. 强制角色（防提权）
     # ========================
     role = "user"
 
     # ========================
-    # 3. 生成 user_id
+    # 4. 生成 user_id
     # ========================
     result = await db.execute(select(User.user_id))
     existing_user_ids = [uid for (uid,) in result.all()]
     user_id = generate_unique_user_id(username, existing_user_ids)
 
     # ========================
-    # 4. 创建用户
+    # 5. 创建用户
     # ========================
     try:
         new_user = await user_repo.create(
             {
                 "username": username,
                 "user_id": user_id,
-                "phone_number": phone,
+                "email": email,
+                "email_verified": True,
                 "password_hash": AuthUtils.hash_password(user_data.password),
                 "role": role,
             }
@@ -417,13 +476,13 @@ async def register_user(
                 },
             )
 
-        elif "ix_users_phone_number" in msg:
+        elif "ix_users_email" in msg or "users_email" in msg:
             raise HTTPException(
                 status_code=409,
                 detail={
                     "code": 409,
                     "message": "注册失败",
-                    "errors": [{"field": "phone_number", "reason": "手机号已注册"}],
+                    "errors": [{"field": "email", "reason": "邮箱已被注册"}],
                 },
             )
 
@@ -432,21 +491,13 @@ async def register_user(
             raise HTTPException(status_code=500, detail=str(e))
 
     # ========================
-    # 5. 脱敏手机号
-    # ========================
-    def mask_phone(p):
-        if not p:
-            return None
-        return p[:3] + "****" + p[-4:]
-
-    # ========================
     # 6. 记录日志
     # ========================
     await log_operation(
         db,
         new_user.id,
         "用户注册",
-        f"注册用户: {username}",
+        f"注册用户: {username}, 邮箱: {email}",
         request,
     )
 
@@ -460,7 +511,7 @@ async def register_user(
             "id": new_user.id,
             "username": new_user.username,
             "user_id": new_user.user_id,
-            "phone_number": mask_phone(new_user.phone_number),
+            "email": email,
             "avatar": new_user.avatar,
             "role": new_user.role,
             "created_at": str(new_user.created_at),
@@ -555,29 +606,17 @@ async def read_users(
     skip: int = 0, limit: int = 100, current_user: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)
 ):
     user_repo = UserRepository()
-
-    # 部门隔离逻辑
-    if current_user.role == "superadmin":
-        # 超级管理员可以看到所有用户
-        users_with_dept = await user_repo.list_with_department(skip=skip, limit=limit)
-    else:
-        # 普通管理员只能看到本部门用户
-        users_with_dept = await user_repo.list_with_department(
-            skip=skip, limit=limit, department_id=current_user.department_id
-        )
-
-    users = []
-    for user, dept_name in users_with_dept:
-        user_dict = user.to_dict()
-        user_dict["department_name"] = dept_name
-        users.append(user_dict)
-    return users
+    users = await user_repo.list_users(skip=skip, limit=limit)
+    return [user.to_dict() for user in users]
 
 
 # 路由：获取特定用户信息（管理员权限）
 @auth.get("/users/{user_id}", response_model=UserResponse)
 async def read_user(user_id: int, current_user: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).filter(User.id == user_id, User.is_deleted == 0))
+    result = await db.execute(
+        select(User).options(selectinload(User.user_address))
+        .filter(User.id == user_id, User.is_deleted == 0)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(
@@ -608,7 +647,10 @@ async def update_user(
     current_user: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(User).filter(User.id == user_id, User.is_deleted == 0))
+    result = await db.execute(
+        select(User).options(selectinload(User.user_address))
+        .filter(User.id == user_id, User.is_deleted == 0)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(
@@ -812,6 +854,37 @@ async def check_user_id_availability(
     return {"user_id": user_id, "is_available": existing_user is None}
 
 
+# 注册验证码存储（内存，重启即失效）
+_registration_codes: dict[str, dict] = {}
+
+
+@auth.post("/register/send-code")
+async def send_registration_code(req: dict):
+    """发送注册验证码（公开接口，无需登录）"""
+    email = req.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="请输入邮箱")
+
+    # 检查邮箱是否已被注册
+    async with pg_manager.get_async_session_context() as db:
+        result = await db.execute(
+            text("SELECT id FROM users WHERE email = :email AND email_verified = TRUE"),
+            {"email": email},
+        )
+        if result.fetchone():
+            raise HTTPException(status_code=409, detail="该邮箱已被注册")
+
+    from src.services.email_service import generate_verification_code, send_verification_code_email
+
+    code = generate_verification_code()
+    expires_at = utc_now_naive() + timedelta(minutes=10)
+    _registration_codes[email] = {"code": code, "expires_at": expires_at}
+
+    await send_verification_code_email(email, code)
+    logger.info("注册验证码已发送到 {}", email)
+    return {"code": 0, "message": "验证码已发送"}
+
+
 # 路由：上传用户头像
 @auth.post("/upload-avatar")
 async def upload_user_avatar(
@@ -893,6 +966,7 @@ async def impersonate_user(
         "username": target_user.username,
         "user_id_login": target_user.user_id,
         "phone_number": target_user.phone_number,
+        "email": target_user.email,
         "avatar": target_user.avatar,
         "role": target_user.role,
         "department_id": target_user.department_id,

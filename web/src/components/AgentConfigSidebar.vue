@@ -132,7 +132,8 @@
                 <a-select
                   v-else-if="
                     (value?.template_metadata?.kind === 'llm' && value?.options?.length > 0) ||
-                    (value?.options?.length > 0 && (value?.type === 'str' || value?.type === 'select'))
+                    (value?.options?.length > 0 &&
+                      (value?.type === 'str' || value?.type === 'select'))
                   "
                   :value="agentConfig[key]"
                   @update:value="(val) => agentStore.updateAgentConfig({ [key]: val })"
@@ -445,7 +446,6 @@ const hasOtherConfigs = computed(() => {
     const isBasic =
       value.template_metadata?.kind === 'prompt' || value.template_metadata?.kind === 'llm'
     const isTools =
-      value.template_metadata?.kind === 'mcps' ||
       value.template_metadata?.kind === 'knowledges' ||
       value.template_metadata?.kind === 'tools'
 
@@ -492,7 +492,7 @@ const currentModelSupportsThinking = computed(() => {
 
   // 使用 model_options 来查找模型信息
   const modelOptions = configStore.config?.model_options || []
-  const modelInfo = modelOptions.find(opt => opt.value === modelSpec)
+  const modelInfo = modelOptions.find((opt) => opt.value === modelSpec)
 
   return modelInfo?.supports_thinking === true
 })
@@ -543,14 +543,16 @@ const filteredOptions = computed(() => {
 // 方法
 const shouldShowConfig = (key, value) => {
   // 如果是思考相关配置，但模型不支持思考，则隐藏
-  if ((key === 'thinking_enabled' || key === 'thinking_effort') && !currentModelSupportsThinking.value) {
+  if (
+    (key === 'thinking_enabled' || key === 'thinking_effort') &&
+    !currentModelSupportsThinking.value
+  ) {
     return false
   }
 
   const isBasic =
     value.template_metadata?.kind === 'prompt' || value.template_metadata?.kind === 'llm'
   const isTools =
-    value.template_metadata?.kind === 'mcps' ||
     value.template_metadata?.kind === 'knowledges' ||
     value.template_metadata?.kind === 'tools'
 
@@ -558,7 +560,7 @@ const shouldShowConfig = (key, value) => {
     // 基础：System Prompt, LLM Model
     return isBasic
   } else if (activeTab.value === 'tools') {
-    // 工具：Tools, MCPs, Knowledges
+    // 工具：Tools, Knowledges
     return isTools
   } else {
     // 其他：剩余所有配置

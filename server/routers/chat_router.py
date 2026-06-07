@@ -3,8 +3,8 @@ import traceback
 import uuid
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.storage.postgres.models_business import User
@@ -156,6 +156,7 @@ async def get_agent(current_user: User = Depends(get_required_user)):
             "capabilities": agent_info.get("capabilities", []),  # 智能体能力列表
         }
         for agent_info in agents_info
+        if agent_info["id"] != "WebhookAgent"  # 推送智能体仅后端使用，不展示给用户
     ]
 
     return {"agents": agents}
@@ -582,6 +583,39 @@ async def get_agent_config(agent_id: str, current_user: User = Depends(get_requi
     except Exception as e:
         logger.error(f"加载智能体配置出错: {e}, {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"加载智能体配置出错: {str(e)}")
+
+
+class PdfReportRequest(BaseModel):
+    """PDF报告生成请求"""
+    markdown: str = Field(description="报告 Markdown 内容")
+    filename: str | None = Field(default=None, description="下载文件名（不含扩展名）")
+
+
+@chat.post("/agent/{agent_id}/report-pdf")
+async def generate_agent_report_pdf(
+    agent_id: str,
+    req: PdfReportRequest,
+    current_user: User = Depends(get_required_user),
+):
+    """将智能体生成的报告 Markdown 转为美化 PDF（仅限 crop_agent）"""
+    try:
+        from src.agents.crop_agent.pdf_service import generate_pdf
+
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            pdf_path = generate_pdf(req.markdown, tmp.name)
+            if not pdf_path:
+                raise HTTPException(status_code=500, detail="PDF 生成失败")
+
+        filename = req.filename or f"crop_report_{uuid.uuid4().hex[:8]}"
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=f"{filename}.pdf",
+        )
+    except Exception as e:
+        logger.error(f"生成PDF报告出错: {e}, {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"生成PDF报告出错: {str(e)}")
 
 
 # ==================== 线程管理 API ====================
