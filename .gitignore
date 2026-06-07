@@ -69,5 +69,3 @@ docs/vibe
 /docker/volumes.7z
 /docker/volumes_compress_202605292020.tar.gz
 
-# 临时项目，后续删除
-crop-management-system/

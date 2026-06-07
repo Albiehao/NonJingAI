@@ -1,0 +1,22 @@
+[
+  { "id": "sp-001", "name": "高效复合肥 25kg", "category": "肥料", "brand": "禾信优选", "price": 168, "sales": 236, "image": "/img/001.jpeg", "desc": "氮磷钾均衡配比，适用于大田与经济作物。" },
+  { "id": "sp-002", "name": "有机颗粒肥 20kg", "category": "肥料", "brand": "绿沃", "price": 139, "sales": 188, "image": "/img/002.jpeg", "desc": "富含有机质，改善土壤团粒结构，提升保水性。" },
+  { "id": "sp-003", "name": "水溶肥料 10kg", "category": "肥料", "brand": "泽田", "price": 225, "sales": 152, "image": "/img/003.jpeg", "desc": "速溶配方，适合滴灌与冲施场景。" },
+  { "id": "sp-004", "name": "微量元素叶面肥 5kg", "category": "肥料", "brand": "农科星", "price": 96, "sales": 104, "image": "/img/004.jpeg", "desc": "补充锌硼铁等元素，降低缺素风险。" },
+  { "id": "sp-005", "name": "吡虫啉 10% 悬浮剂", "category": "农药", "brand": "田丰", "price": 86, "sales": 321, "image": "/img/005.jpeg", "desc": "针对刺吸式口器害虫，见效快，持效稳定。", "summary": "适用于蚜虫、粉虱、叶蝉等刺吸式害虫防治，见效快、持效期较长。", "targets": "蚜虫 / 粉虱 / 叶蝉等刺吸式害虫", "crops": "蔬菜 / 果树 / 经济作物", "usage": "按标签推荐浓度配药，均匀喷雾；尽量避开高温强光时段。", "notes": "轮换用药降低抗性风险；远离蜂群与水体；按安全间隔期采收。" },
+  { "id": "sp-006", "name": "多菌灵 50% 可湿性粉剂", "category": "农药", "brand": "丰泰", "price": 79, "sales": 268, "image": "/img/006.jpeg", "desc": "常见真菌病害防治，适合果蔬和粮食作物。" },
+  { "id": "sp-007", "name": "阿维菌素乳油", "category": "农药", "brand": "禾力", "price": 118, "sales": 211, "image": "/img/007.jpeg", "desc": "防治螨类和小型害虫，建议轮换使用。" },
+  { "id": "sp-008", "name": "草甘膦除草剂", "category": "农药", "brand": "沃地", "price": 132, "sales": 198, "image": "/img/008.jpeg", "desc": "适用于非耕地杂草防除，使用便捷。" },
+  { "id": "sp-009", "name": "手推喷雾器 16L", "category": "农具", "brand": "农匠", "price": 206, "sales": 84, "image": "/img/009.jpeg", "desc": "高压雾化均匀，轻便耐用，适合小中型地块。" },
+  { "id": "sp-010", "name": "园艺修枝剪", "category": "农具", "brand": "巧农", "price": 58, "sales": 143, "image": "/img/010.jpeg", "desc": "碳钢刀口锋利，省力结构，适合日常修剪。" },
+  { "id": "sp-011", "name": "加厚防滑手套 3双", "category": "农具", "brand": "农护", "price": 42, "sales": 275, "image": "/img/012.jpeg", "desc": "耐磨防滑，透气舒适，适应多种田间作业。" },
+  { "id": "sp-012", "name": "智能土壤检测仪", "category": "农机", "brand": "智农云", "price": 459, "sales": 39, "image": "/img/001.jpeg", "desc": "支持土壤湿度与酸碱度检测，便于科学施肥。" },
+  { "id": "sp-013", "name": "微型旋耕机 4.0HP", "category": "农机", "brand": "劲田", "price": 1899, "sales": 23, "image": "/img/002.jpeg", "desc": "家用与小田块翻耕利器，动力稳定。" },
+  { "id": "sp-014", "name": "电动播种机", "category": "农机", "brand": "丰收达", "price": 1299, "sales": 31, "image": "/img/003.jpeg", "desc": "定量播种，提升效率，降低人工成本。" },
+  { "id": "sp-015", "name": "滴灌套装 50m", "category": "灌溉", "brand": "润禾", "price": 328, "sales": 66, "image": "/img/004.jpeg", "desc": "节水滴灌方案，安装简单，维护方便。" },
+  { "id": "sp-016", "name": "喷灌喷头 10只", "category": "灌溉", "brand": "水盈", "price": 115, "sales": 92, "image": "/img/005.jpeg", "desc": "雾化均匀，覆盖范围广，适配多种管径。" },
+  { "id": "sp-017", "name": "温室遮阳网 8m x 30m", "category": "设施", "brand": "盛禾", "price": 418, "sales": 51, "image": "/img/006.jpeg", "desc": "降低温室高温影响，透气耐晒，使用寿命长。" },
+  { "id": "sp-018", "name": "防虫网 6m x 20m", "category": "设施", "brand": "绿盾", "price": 286, "sales": 73, "image": "/img/007.jpeg", "desc": "物理防虫，减少药剂使用频次。" },
+  { "id": "sp-019", "name": "生物菌剂 5kg", "category": "土壤改良", "brand": "益田", "price": 248, "sales": 88, "image": "/img/008.jpeg", "desc": "激活土壤微生态，促进根系生长。" },
+  { "id": "sp-020", "name": "土壤调理剂 20kg", "category": "土壤改良", "brand": "地润", "price": 372, "sales": 57, "image": "/img/009.jpeg", "desc": "改良板结土壤，提升地力与通透性。" }
+]
