@@ -8,6 +8,7 @@ from src.agents.common.toolkits.knowledge_base.tool import get_kb_based_tools
 from src.agents.common.toolkits.weather import weather_forecast
 from src.agents.common.toolkits.web_search.tool import get_tavily_search
 from src.agents.common.toolkits.yolo.tool import yolo
+from src.agents.common.toolkits.agrochemicals import get_agrochemical_by_name
 
 __all__ = [
     "calculator",
@@ -18,4 +19,5 @@ __all__ = [
     "yolo",
     "get_kb_based_tools",
     "get_tavily_search",
+    "get_agrochemical_by_name",
 ]

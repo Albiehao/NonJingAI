@@ -10,6 +10,7 @@ from sqlalchemy.orm import declarative_base
 
 from server.utils.singleton import SingletonMeta
 from src.storage.postgres.models_business import Base as BusinessBase
+from src.storage.postgres.models_crop import Base as CropBase
 from src.storage.postgres.models_knowledge import Base as KnowledgeBase
 from src.utils import logger
 
@@ -17,7 +18,7 @@ from src.utils import logger
 CombinedBase = declarative_base()
 
 # 继承所有表
-for module in [KnowledgeBase, BusinessBase]:
+for module in [KnowledgeBase, BusinessBase, CropBase]:
     for table_name in dir(module):
         table = getattr(module, table_name)
         if isinstance(table, type) and hasattr(table, "__tablename__"):
@@ -89,6 +90,11 @@ class PostgresManager(metaclass=SingletonMeta):
         self._check_initialized()
         async with self.async_engine.begin() as conn:
             await conn.run_sync(BusinessBase.metadata.create_all)
+            await conn.run_sync(CropBase.metadata.create_all)
+
+        # 业务表 schema 迁移
+        async with self.async_engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS geo_context JSONB"))
         logger.info("PostgreSQL business tables created/checked")
 
     async def drop_tables(self):
@@ -96,6 +102,7 @@ class PostgresManager(metaclass=SingletonMeta):
         self._check_initialized()
         async with self.async_engine.begin() as conn:
             await conn.run_sync(BusinessBase.metadata.drop_all)
+            await conn.run_sync(CropBase.metadata.drop_all)
             await conn.run_sync(KnowledgeBase.metadata.drop_all)
         logger.info("PostgreSQL tables dropped")
 

@@ -1,13 +1,13 @@
 <script setup>
 import { ref, reactive, onMounted, computed, provide } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { GithubOutlined } from '@ant-design/icons-vue'
-import { Bot, Waypoints, LibraryBig, BarChart3, CircleCheck } from 'lucide-vue-next'
+import { Bot, Waypoints, LibraryBig, BarChart3, CircleCheck, Package } from 'lucide-vue-next'
 
 import { useConfigStore } from '@/stores/config'
 import { useDatabaseStore } from '@/stores/database'
 import { useInfoStore } from '@/stores/info'
 import { useTaskerStore } from '@/stores/tasker'
+import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
 import UserInfoComponent from '@/components/UserInfoComponent.vue'
 import DebugComponent from '@/components/DebugComponent.vue'
@@ -18,16 +18,13 @@ const configStore = useConfigStore()
 const databaseStore = useDatabaseStore()
 const infoStore = useInfoStore()
 const taskerStore = useTaskerStore()
+const userStore = useUserStore()
 const { activeCount: activeCountRef, isDrawerOpen } = storeToRefs(taskerStore)
 
 const layoutSettings = reactive({
   showDebug: false,
   useTopBar: false // 是否使用顶栏
 })
-
-// Add state for GitHub stars
-const githubStars = ref(0)
-const isLoadingStars = ref(false)
 
 // Add state for debug modal
 const showDebugModal = ref(false)
@@ -53,28 +50,12 @@ const getRemoteDatabase = () => {
   databaseStore.loadDatabases()
 }
 
-// Fetch GitHub stars count
-const fetchGithubStars = async () => {
-  try {
-    isLoadingStars.value = true
-    // 公共API，可以直接使用fetch
-    const response = await fetch('https://api.github.com/repos/xerrors/Yuxi-Know')
-    const data = await response.json()
-    githubStars.value = data.stargazers_count
-  } catch (error) {
-    console.error('获取GitHub stars失败:', error)
-  } finally {
-    isLoadingStars.value = false
-  }
-}
-
 onMounted(async () => {
   // 加载信息配置
   await infoStore.loadInfoConfig()
   // 加载其他配置
   getRemoteConfig()
   getRemoteDatabase()
-  fetchGithubStars() // Fetch GitHub stars on mount
   // 预加载任务数据，确保任务中心打开时有内容
   taskerStore.loadTasks()
 })
@@ -85,33 +66,44 @@ console.log(route)
 
 const activeTaskCount = computed(() => activeCountRef.value || 0)
 
-// 下面是导航菜单部分，添加智能体项
-const mainList = [
-  {
-    name: '智能体',
-    path: '/agent',
-    icon: Bot,
-    activeIcon: Bot
-  },
-  {
-    name: '图谱',
-    path: '/graph',
-    icon: Waypoints,
-    activeIcon: Waypoints
-  },
-  {
-    name: '知识库',
-    path: '/database',
-    icon: LibraryBig,
-    activeIcon: LibraryBig
-  },
-  {
-    name: 'Dashboard',
-    path: '/dashboard',
-    icon: BarChart3,
-    activeIcon: BarChart3
+// 导航菜单
+const mainList = computed(() => {
+  const items = [
+    {
+      name: '智能体',
+      path: '/agent',
+      icon: Bot,
+      activeIcon: Bot
+    },
+    {
+      name: '图谱',
+      path: '/graph',
+      icon: Waypoints,
+      activeIcon: Waypoints
+    },
+    {
+      name: '知识库',
+      path: '/database',
+      icon: LibraryBig,
+      activeIcon: LibraryBig
+    },
+    {
+      name: 'Dashboard',
+      path: '/dashboard',
+      icon: BarChart3,
+      activeIcon: BarChart3
+    }
+  ]
+  if (userStore.isAdmin) {
+    items.push({
+      name: '农资管理',
+      path: '/crop-admin',
+      icon: Package,
+      activeIcon: Package
+    })
   }
-]
+  return items
+})
 
 // Provide settings modal methods to child components
 provide('settingsModal', {
@@ -165,17 +157,6 @@ provide('settingsModal', {
         </div>
       </div>
       <div class="fill"></div>
-      <div class="github nav-item">
-        <a-tooltip placement="right">
-          <template #title>欢迎 Star</template>
-          <a href="https://github.com/xerrors/Yuxi-Know" target="_blank" class="github-link">
-            <GithubOutlined class="icon" />
-            <span v-if="githubStars > 0" class="github-stars">
-              <span class="star-count">{{ (githubStars / 1000).toFixed(1) }}k</span>
-            </span>
-          </a>
-        </a-tooltip>
-      </div>
       <!-- 用户信息组件 -->
       <div class="nav-item user-info">
         <UserInfoComponent />

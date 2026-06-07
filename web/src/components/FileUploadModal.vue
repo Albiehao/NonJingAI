@@ -958,11 +958,6 @@ const getAuthHeaders = () => {
 }
 
 const openDocLink = () => {
-  window.open(
-    'https://xerrors.github.io/Yuxi-Know/latest/advanced/document-processing.html',
-    '_blank',
-    'noopener'
-  )
 }
 
 const chunkData = async () => {

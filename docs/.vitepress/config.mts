@@ -5,9 +5,9 @@ import markdownItTaskCheckbox from 'markdown-it-task-checkbox'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   lang: 'zh-CN',
-  title: "Yuxi-Know",
-  description: "语析",
-  base: '/Yuxi-Know/',
+  title: "QianXun",
+  description: "千寻",
+  base: '/QianXun/',
   markdown: {
     config: (md) => {
       md.use(markdownItTaskCheckbox)
@@ -15,7 +15,7 @@ export default defineConfig({
   },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    logo: "/favicon.svg",
+    logo: "/image.png",
     nav: [
       {
         text: 'Version',
@@ -31,7 +31,7 @@ export default defineConfig({
         {
           text: '简介',
           items: [
-            { text: '什么是 Yuxi-Know？', link: '/latest/intro/project-overview' },
+            { text: '什么是 QianXun？', link: '/latest/intro/project-overview' },
             { text: '快速开始', link: '/latest/intro/quick-start' },
             { text: '模型配置', link: '/latest/intro/model-config' },
             { text: '知识库与知识图谱', link: '/latest/intro/knowledge-base' },
@@ -53,7 +53,6 @@ export default defineConfig({
           text: '更新日志',
           items: [
             { text: '路线图', link: '/latest/changelog/roadmap' },
-            { text: '参与贡献', link: '/latest/changelog/contributing' },
             { text: '常见问题', link: '/latest/changelog/faq' },
             { text: '迁移至 v0.5', link: '/latest/changelog/migrate_to_v0-5' }
           ]
@@ -63,7 +62,7 @@ export default defineConfig({
         {
           text: '简介',
           items: [
-            { text: '什么是 Yuxi-Know？', link: '/v0.4.0/intro/project-overview' },
+            { text: '什么是 QianXun？', link: '/v0.4.0/intro/project-overview' },
             { text: '快速开始', link: '/v0.4.0/intro/quick-start' },
             { text: '模型配置', link: '/v0.4.0/intro/model-config' },
             { text: '知识库与知识图谱', link: '/v0.4.0/intro/knowledge-base' },
@@ -85,19 +84,16 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/xerrors/Yuxi-Know' }
     ],
 
 
     footer: {
-      message: '本项目基于 MIT License 开源，欢迎使用和贡献。',
+      message: '',
       copyright: 'Copyright © 2025-present Yuxi'
     },
 
 
     editLink: {
-      pattern: 'https://github.com/xerrors/Yuxi-Know/edit/main/docs/:path',
-      text: '在 GitHub 上编辑此页'
     },
 
     lastUpdated: {

@@ -91,6 +91,18 @@ const router = createRouter({
       ]
     },
     {
+      path: '/crop-admin',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'CropAdmin',
+          component: () => import('../views/CropAdminView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       component: () => import('../views/EmptyView.vue'),

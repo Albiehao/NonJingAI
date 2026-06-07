@@ -33,10 +33,12 @@ class User(Base):
     user_id = Column(String, nullable=False, unique=True, index=True)  # 登录ID
     phone_number = Column(String, nullable=True, unique=True, index=True)  # 手机号
     avatar = Column(String, nullable=True)  # 头像URL
+    geo_context = Column(JSON, nullable=True) # 地理位置信息
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="user")  # 角色: superadmin, admin, user
     created_at = Column(DateTime, default=utc_now_naive)
     last_login = Column(DateTime, nullable=True)
+
 
     # 登录失败限制相关字段
     login_failed_count = Column(Integer, nullable=False, default=0)  # 登录失败次数
@@ -59,6 +61,7 @@ class User(Base):
             "phone_number": self.phone_number,
             "avatar": self.avatar,
             "role": self.role,
+            "geo_context": self.geo_context,
             "created_at": format_utc_datetime(self.created_at),
             "last_login": format_utc_datetime(self.last_login),
             "login_failed_count": self.login_failed_count,
@@ -115,7 +118,7 @@ class User(Base):
 
 
 class AgentConfig(Base):
-    """智能体配置（按部门共享，多份可切换）"""
+    """智能体配置"""
 
     __tablename__ = "agent_configs"
 
