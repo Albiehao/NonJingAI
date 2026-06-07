@@ -129,6 +129,7 @@
 </template>
 
 <script>
+import { API_BASE_URL } from '@/config'
 import { getUserById, updateUser } from '@/api/user'
 import { getUserCropsByUserId, addUserCrop, deleteUserCrop } from '@/api/userCrops'
 import { getAllCrops } from '@/api/crops'
@@ -169,10 +170,12 @@ export default {
       if (!this.userAvatar) return ''
       // base64格式直接返回（用于预览）
       if (this.userAvatar.startsWith('data:')) return this.userAvatar
-      // 完整URL直接返回
-      if (this.userAvatar.startsWith('http')) return this.userAvatar
+      // 完整URL直接返回（绝对路径转为相对路径，兼容已存域名的情况）
+      if (this.userAvatar.startsWith('http')) {
+        try { return new URL(this.userAvatar).pathname } catch { return this.userAvatar }
+      }
       // 相对路径拼接后端地址
-      return `http://localhost:8080${this.userAvatar}`
+      return API_BASE_URL + this.userAvatar
     },
     roleText() {
       const role = localStorage.getItem('role') || ''

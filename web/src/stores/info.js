@@ -44,7 +44,17 @@ export const useInfoStore = defineStore('info', () => {
   )
 
   // 动作方法
+  function normalizeUrl(url) {
+    if (!url) return ''
+    try { return new URL(url).pathname } catch { return url }
+  }
+
   function setInfoConfig(newConfig) {
+    // 头像/Logo URL 统一转为相对路径（兼容已存绝对 URL）
+    if (newConfig?.organization) {
+      if (newConfig.organization.avatar) newConfig.organization.avatar = normalizeUrl(newConfig.organization.avatar)
+      if (newConfig.organization.logo) newConfig.organization.logo = normalizeUrl(newConfig.organization.logo)
+    }
     infoConfig.value = newConfig
     isLoaded.value = true
   }
