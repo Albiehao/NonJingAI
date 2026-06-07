@@ -1,4 +1,5 @@
 import request from './request'
+import { API_BASE_URL } from '@/config'
 
 export function chat(message, userId) {
   return request({
@@ -13,7 +14,7 @@ export function chat(message, userId) {
 
 export function chatStream(message, { onToken, onRecommendations, onComplete, onError }) {
   return new Promise((resolve, reject) => {
-    const url = 'http://localhost:8080/chat/stream'
+    const url = API_BASE_URL + '/chat/stream'
     let completed = false
 
     const completeOnce = () => {

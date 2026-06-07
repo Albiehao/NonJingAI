@@ -58,6 +58,7 @@
 </template>
 
 <script>
+import { API_BASE_URL } from '@/config'
 import HmButton from '../common/HmButton.vue'
 
 export default {
@@ -108,8 +109,10 @@ export default {
     },
     avatarUrl() {
       if (!this.avatar) return ''
-      if (this.avatar.startsWith('http')) return this.avatar
-      return 'http://localhost:8080' + this.avatar
+      if (this.avatar.startsWith('http')) {
+        try { return new URL(this.avatar).pathname } catch { return this.avatar }
+      }
+      return API_BASE_URL + this.avatar
     }
   },
   methods: {
