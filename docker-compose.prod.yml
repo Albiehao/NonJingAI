@@ -29,8 +29,9 @@ services:
       - MINIO_URI=${MINIO_URI:-http://milvus-minio:9000}
       - MODEL_DIR_IN_DOCKER=/models
       - RUNNING_IN_DOCKER=true
-      - NO_PROXY=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn
-      - no_proxy=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn
+      - NO_PROXY=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn,qianxun-server,qianxun-db
+      - no_proxy=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd,etcd,minio,mineru,paddlex,api.siliconflow.cn,qianxun-server,qianxun-db
+      - CROP_BACKEND_URL=${QIANXUN_SERVER_URL:-http://qianxun-server:8080}
     command: uv run --no-dev uvicorn server.main:app --host 0.0.0.0 --port 5050
     restart: unless-stopped
     healthcheck:
@@ -258,6 +259,88 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+
+  yoloapi:
+    build:
+      context: .
+      dockerfile: docker/yoloapi.Dockerfile
+    image: yolo-api:0.1.0
+    container_name: yolo-api
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - RUNNING_IN_DOCKER=true
+      - YOLO_MODEL_PATH=yolo.pt
+      - MINIO_URI=http://minio:9000
+      - MINIO_PUBLIC_URI=http://localhost:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Qianxun 农资服务后端
+  qianxun-server:
+    build:
+      context: ./crop-management-system
+      dockerfile: ../docker/qianxun-server.Dockerfile
+    image: qianxun-server:0.0.1.prod
+    container_name: qianxun-server
+    working_dir: /build
+    volumes:
+      - ./crop-management-system/uploads:/build/uploads
+      - maven-cache:/root/.m2
+    networks:
+      - app-network
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://qianxun-db:3306/CropManagementSystem?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&allowMultiQueries=true&zeroDateTimeBehavior=convertToNull&transformedBitIsBit=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${QIANXUN_DB_PASSWORD:-12345678}
+      - TZ=Asia/Shanghai
+      - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.siliconflow.cn/v1}
+      - AI_OPENAI_API_KEY=${SILICONFLOW_API_KEY:-}
+      - AI_OPENAI_MODEL_NAME=${AI_OPENAI_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}
+    depends_on:
+      qianxun-db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # Qianxun 数据库
+  qianxun-db:
+    image: mysql:8.0
+    container_name: qianxun-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=${QIANXUN_DB_PASSWORD:-12345678}
+      - MYSQL_DATABASE=CropManagementSystem
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./docker/volumes/qianxun-db:/var/lib/mysql
+      - ./crop-management-system/CropManagementSystem.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${QIANXUN_DB_PASSWORD:-12345678}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  maven-cache:
 
 networks:
   app-network:

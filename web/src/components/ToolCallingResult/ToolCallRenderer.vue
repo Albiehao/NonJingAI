@@ -1,4 +1,7 @@
 <template>
+  <!-- 农资查询 -->
+  <AgrochemicalsTool v-if="isAgrochemicalsResult" :tool-call="toolCall" />
+
   <!-- 知识图谱查询结果 -->
   <KnowledgeGraphTool v-if="isKnowledgeGraphResult" :tool-call="toolCall" ref="graphToolCallRef" />
 
@@ -73,6 +76,7 @@ import EditFileTool from './tools/EditFileTool.vue'
 import MysqlQueryTool from './tools/MysqlQueryTool.vue'
 import MysqlDescribeTableTool from './tools/MysqlDescribeTableTool.vue'
 import MysqlListTablesTool from './tools/MysqlListTablesTool.vue'
+import AgrochemicalsTool from './tools/AgrochemicalsTool.vue'
 
 const props = defineProps({
   toolCall: {
@@ -105,6 +109,11 @@ const parseData = (content) => {
 }
 
 // 识别逻辑
+const isAgrochemicalsResult = computed(() => {
+  const name = toolName.value.toLowerCase()
+  return name.includes('agrochemical') || name.includes('农资')
+})
+
 const isWebSearchResult = computed(() => {
   const name = toolName.value.toLowerCase()
   return name.includes('tavily_search')

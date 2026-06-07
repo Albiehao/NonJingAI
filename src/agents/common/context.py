@@ -30,11 +30,6 @@ class BaseContext:
         metadata={"name": "用户ID", "configurable": False, "description": "用于唯一标识一个用户"},
     )
 
-    department_id: int | None = field(
-        default=None,
-        metadata={"name": "部门ID", "configurable": False, "description": "用来唯一标识一个部门"},
-    )
-
     system_prompt: Annotated[str, {"__template_metadata__": {"kind": "prompt"}}] = field(
         default="You are a helpful assistant.",
         metadata={"name": "系统提示词", "description": "用于描述智能体的角色和行为"},

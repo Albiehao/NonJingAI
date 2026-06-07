@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 
 from src.storage.postgres.manager import pg_manager
 from src.storage.postgres.models_business import User
+from src.utils.check_geo_util import get_geo_location
 
 # 使用 naive datetime 以兼容 PostgreSQL TIMESTAMP WITHOUT TIME ZONE 列
 _utc_now = dt.now(UTC).replace(tzinfo=None)
@@ -35,38 +36,17 @@ class UserRepository:
             return result.scalar_one_or_none()
 
     async def list_users(
-        self, skip: int = 0, limit: int = 100, department_id: int | None = None, role: str | None = None
+        self, skip: int = 0, limit: int = 100, role: str | None = None
     ) -> list[User]:
         """获取用户列表"""
         async with pg_manager.get_async_session_context() as session:
             query = select(User).where(User.is_deleted == 0)
-            if department_id is not None:
-                query = query.where(User.department_id == department_id)
             if role is not None:
                 query = query.where(User.role == role)
             query = query.order_by(User.id.asc()).offset(skip).limit(limit)
             result = await session.execute(query)
             return list(result.scalars().all())
 
-    async def list_with_department(
-        self, skip: int = 0, limit: int = 100, department_id: int | None = None, role: str | None = None
-    ) -> Annotated[list[tuple[User, str | None]], "用户列表，包含部门名称"]:
-        """获取用户列表，包含部门名称"""
-        async with pg_manager.get_async_session_context() as session:
-            from src.storage.postgres.models_business import Department
-
-            query = (
-                select(User, Department.name.label("department_name"))
-                .outerjoin(Department, User.department_id == Department.id)
-                .where(User.is_deleted == 0)
-            )
-            if department_id is not None:
-                query = query.where(User.department_id == department_id)
-            if role is not None:
-                query = query.where(User.role == role)
-            query = query.order_by(User.id.asc()).offset(skip).limit(limit)
-            result = await session.execute(query)
-            return list(result.all())
 
     async def create(self, data: dict[str, Any]) -> User:
         """创建用户"""
@@ -76,6 +56,7 @@ class UserRepository:
             await session.commit()
             await session.refresh(user)
         return user
+
 
     async def update(self, id: int, data: dict[str, Any]) -> User | None:
         """更新用户"""
@@ -88,6 +69,16 @@ class UserRepository:
                 if key != "id":
                     setattr(user, key, value)
         return user
+
+    async def geo_context_update(self, id: int, geo_context: dict[str, Any]) -> User | None:
+        """更新用户地理位置信息"""
+        async with pg_manager.get_async_session_context() as session:
+            result = await session.execute(select(User).where(User.id == id, User.is_deleted == 0))
+            user = result.scalar_one_or_none()
+            if user is None:
+                return None
+            user.geo_context = geo_context
+            return  user
 
     async def soft_delete(self, id: int, username: str | None = None, phone_number: str | None = None) -> bool:
         """软删除用户"""
@@ -120,12 +111,10 @@ class UserRepository:
             result = await session.execute(select(User.id).where(User.phone_number == phone))
             return result.scalar_one_or_none() is not None
 
-    async def count(self, department_id: int | None = None) -> int:
+    async def count(self) -> int:
         """统计用户数量"""
         async with pg_manager.get_async_session_context() as session:
             query = select(func.count(User.id)).where(User.is_deleted == 0)
-            if department_id is not None:
-                query = query.where(User.department_id == department_id)
             result = await session.execute(query)
             return result.scalar() or 0
 
@@ -135,13 +124,26 @@ class UserRepository:
             result = await session.execute(select(User.user_id))
             return [uid for (uid,) in result.all()]
 
-    async def get_admin_count_in_department(self, department_id: int, exclude_user_id: int | None = None) -> int:
-        """统计部门中管理员数量"""
+    async def get_user_in_geo(self, geo_context: dict[str, float], radius_km: float = 10) -> list[User]:
+        """获取用户在 radius_km 公里范围内"""
         async with pg_manager.get_async_session_context() as session:
-            query = select(func.count(User.id)).where(
-                User.department_id == department_id, User.role == "admin", User.is_deleted == 0
+            center = get_geo_location(geo_context)
+            if not center:
+                return []
+
+            # 查询所有有位置信息的用户
+            query = select(User).where(
+                User.is_deleted == 0,
+                User.geo_context.is_not(None)
             )
-            if exclude_user_id is not None:
-                query = query.where(User.id != exclude_user_id)
             result = await session.execute(query)
-            return result.scalar() or 0
+            users = result.scalars().all()
+
+            # 应用层过滤
+            radius_meters = radius_km * 1000
+            return [
+                user for user in users
+                if (user_loc := get_geo_location(user.geo_context))
+                   and center.distance_to(user_loc) <= radius_meters
+            ]
+

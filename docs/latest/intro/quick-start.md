@@ -1,7 +1,7 @@
 # 快速开始指南
 
 ::: tip 提示
-除了此文档网站外，用户还可以在 [Zread](https://zread.ai/xerrors/Yuxi-Know) 或 [DeepWiki](https://deepwiki.com/xerrors/Yuxi-Know) 平台查看自动生成的详细项目文档。
+除了此文档网站外，用户还可以在 [Zread](https://zread.ai/xerrors/QianXun) 或 [DeepWiki](https://deepwiki.com/xerrors/QianXun) 平台查看自动生成的详细项目文档。
 :::
 
 
@@ -16,13 +16,13 @@
 
 ```bash
 # 克隆稳定版本
-git clone --branch v0.5.0-beta4 --depth 1 https://github.com/xerrors/Yuxi-Know.git
-cd Yuxi-Know
+git clone --branch v0.5.0-beta4 --depth 1 <your-repo-url>
+cd QianXun
 ```
 
 ::: warning 版本说明
 - `v0.4.4`: 稳定版本
-- `v0.5.0-beta4`: 由于数据库重构使用 postgres，可能会存在数据库迁移问题，建议新用户使用，迁移指南详见 [迁移指南](https://xerrors.github.io/Yuxi-Know/latest/changelog/migrate_to_v0-5)。
+- `v0.5.0-beta4`: 由于数据库重构使用 postgres，可能会存在数据库迁移问题，建议新用户使用，迁移指南详见 [迁移指南](../changelog/migrate_to_v0-5)。
 - `main`: 最新开发版本（不稳定，新特性可能会导致新 bug）
 :::
 

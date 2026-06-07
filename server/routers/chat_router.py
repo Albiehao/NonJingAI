@@ -1,3 +1,4 @@
+import os
 import traceback
 import uuid
 
@@ -26,13 +27,13 @@ from src.services.feedback_service import get_message_feedback_view, submit_mess
 from src.services.history_query_service import get_agent_history_view
 from src.repositories.agent_config_repository import AgentConfigRepository
 from src.utils.logging_config import logger
-from src.utils.image_processor import process_uploaded_image
+from src.storage.minio import aupload_file_to_minio
 
 
 # 图片上传响应模型
 class ImageUploadResponse(BaseModel):
     success: bool
-    image_content: str | None = None
+    image_url: str | None = None
     thumbnail_content: str | None = None
     width: int | None = None
     height: int | None = None
@@ -785,7 +786,7 @@ async def get_message_feedback(
 @chat.post("/image/upload", response_model=ImageUploadResponse)
 async def upload_image(file: UploadFile = File(...), current_user: User = Depends(get_required_user)):
     """
-    上传并处理图片，返回base64编码的图片数据
+    上传并处理图片，返回一个图片url
     """
     try:
         # 验证文件类型
@@ -799,20 +800,15 @@ async def upload_image(file: UploadFile = File(...), current_user: User = Depend
         if len(image_data) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="图片文件过大，请上传小于10MB的图片")
 
-        # 处理图片
-        result = process_uploaded_image(image_data, file.filename)
-
-        if not result["success"]:
-            raise HTTPException(status_code=400, detail=f"图片处理失败: {result['error']}")
-
-        logger.info(
-            f"用户 {current_user.id} 成功上传图片: {file.filename}, "
-            f"尺寸: {result['width']}x{result['height']}, "
-            f"格式: {result['format']}, "
-            f"大小: {result['size_bytes']} bytes"
+        # 处理图片 转换为base64的方法已弃用
+        # result = process_uploaded_image(image_data, file.filename)
+        basename, ext = os.path.splitext(file.filename)
+        filename = f"{basename}{ext}".lower()
+        result = await aupload_file_to_minio(bucket_name=os.getenv("CHAT_BUCKET")or"chat-image", file_name=filename,file_extension=ext,data=image_data)
+        return ImageUploadResponse(
+            success=True,
+            image_url=result,
         )
-
-        return ImageUploadResponse(**result)
 
     except HTTPException:
         raise

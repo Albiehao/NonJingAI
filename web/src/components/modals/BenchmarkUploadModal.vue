@@ -88,16 +88,7 @@ const visible = computed({
 // 说明文本
 const extraText = computed(() =>
   h('span', {}, [
-    '需要了解评估基准格式？查看',
-    h(
-      'a',
-      {
-        href: 'https://xerrors.github.io/Yuxi-Know/latest/intro/evaluation.html',
-        target: '_blank',
-        rel: 'noopener noreferrer'
-      },
-      '使用说明'
-    )
+    '需要了解评估基准格式？查看使用说明'
   ])
 )
 

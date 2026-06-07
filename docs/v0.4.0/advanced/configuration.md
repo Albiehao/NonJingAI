@@ -2,7 +2,7 @@
 
 ## 概述
 
-Yuxi-Know 从 v0.3.x 版本开始采用了全新的配置系统，基于 Pydantic BaseModel 和 TOML 格式，提供了类型安全、智能提示和选择性持久化等现代化特性。
+QianXun 从 v0.3.x 版本开始采用了全新的配置系统，基于 Pydantic BaseModel 和 TOML 格式，提供了类型安全、智能提示和选择性持久化等现代化特性。
 
 ## 架构设计
 

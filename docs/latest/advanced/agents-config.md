@@ -112,7 +112,7 @@ class ReporterContext(BaseContext):
 
 #### RuntimeConfigMiddleware
 
-`RuntimeConfigMiddleware`（[runtime_config_middleware.py](https://github.com/xerrors/Yuxi-Know/blob/main/src/agents/common/middlewares/runtime_config_middleware.py)）是系统默认的核心中间件之一，负责在每次模型调用前自动注入运行时配置：
+`RuntimeConfigMiddleware`（`src/agents/common/middlewares/runtime_config_middleware.py`）是系统默认的核心中间件之一，负责在每次模型调用前自动注入运行时配置：
 
 1. **自动注入当前时间**：在 system prompt 开头追加当前时间，格式为 `当前时间：YYYY-MM-DD HH:MM:SS`，确保 LLM 能获取准确的时间上下文。
 2. **动态加载工具**：根据 `context.tools`、`context.knowledges`、`context.mcps` 自动组装可用工具列表。

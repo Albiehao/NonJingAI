@@ -2,8 +2,6 @@
 
 基于大模型、知识图谱与视觉识别的智能分析平台，融合 RAG、知识图谱、YOLO 图像识别与 Agent 推理能力，技术栈为 LangGraph v1 + Vue.js + FastAPI + LightRAG。
 
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)
 <img src="image.png" width="320" alt="禾影千寻预览图" />
 
 ## 系统架构

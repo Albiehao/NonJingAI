@@ -16,6 +16,11 @@ export default defineConfig(({ mode }) => {
         '^/api': {
           target: env.VITE_API_URL || 'http://api:5050',
           changeOrigin: true
+        },
+        '^/crop-api': {
+          target: env.VITE_CROP_API_URL || 'http://qianxun-server:8080',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/crop-api/, '')
         }
       },
       watch: {
