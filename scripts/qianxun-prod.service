@@ -1,0 +1,17 @@
+[Unit]
+Description=千寻生产环境容器服务
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /var/www/qianxun/scripts/start-prod.sh
+ExecStop=/usr/bin/docker -H unix:///var/run/docker.sock compose -f /var/www/qianxun/docker-compose.prod.yml down
+User=root
+TimeoutStartSec=600
+TimeoutStopSec=300
+
+[Install]
+WantedBy=multi-user.target
