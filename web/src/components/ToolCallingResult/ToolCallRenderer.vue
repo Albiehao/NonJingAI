@@ -141,11 +141,13 @@ const isKnowledgeBaseResult = computed(() => {
 
 const isKnowledgeGraphResult = computed(() => {
   const name = toolName.value.toLowerCase()
-  const hasGraphKeyword = name.includes('graph') || name.includes('图谱') || name.includes('kg')
+  const hasGraphKeyword = name.includes('graph') || name.includes('图谱') || name.includes('kg') || name.includes('subgraph')
   const data = parseData(props.toolCall.tool_call_result?.content)
   const hasBasicStructure = data && typeof data === 'object'
   const hasTriples = hasBasicStructure && 'triples' in data
+  const hasGraphFormat = hasBasicStructure && Array.isArray(data.nodes) && Array.isArray(data.edges)
   return (
+    (hasGraphFormat && data.nodes.length > 0) ||
     (hasTriples && Array.isArray(data.triples) && data.triples.length > 0) ||
     (hasTriples && hasGraphKeyword)
   )

@@ -26,8 +26,8 @@
             </div>
           </a-menu-item>
           <a-menu-divider />
-          <a-menu-item key="docs" @click="openDocs" :icon="BookOpenIcon">
-            <span class="menu-text">文档中心</span>
+          <a-menu-item key="profile" @click="goToProfile" :icon="UserIcon">
+            <span class="menu-text">个人中心</span>
           </a-menu-item>
           <a-menu-item
             key="theme"
@@ -38,23 +38,24 @@
               themeStore.isDark ? '切换到浅色模式' : '切换到深色模式 (Beta)'
             }}</span>
           </a-menu-item>
-          <a-menu-divider v-if="userStore.isAdmin" />
-          <a-menu-item
-            v-if="userStore.isSuperAdmin"
-            key="debug"
-            @click="showDebug = true"
-            :icon="TerminalIcon"
-          >
-            <span class="menu-text">调试面板（非生产环境）</span>
-          </a-menu-item>
-          <a-menu-item
-            v-if="userStore.isAdmin"
-            key="setting"
-            @click="goToSetting"
-            :icon="SettingsIcon"
-          >
-            <span class="menu-text">系统设置</span>
-          </a-menu-item>
+          <template v-if="userStore.isAdmin">
+            <a-menu-divider />
+            <a-menu-item key="docs" @click="openDocs" :icon="BookOpenIcon">
+              <span class="menu-text">文档中心</span>
+            </a-menu-item>
+            <a-menu-item
+              v-if="userStore.isSuperAdmin"
+              key="debug"
+              @click="showDebug = true"
+              :icon="TerminalIcon"
+            >
+              <span class="menu-text">调试面板（非生产环境）</span>
+            </a-menu-item>
+            <a-menu-item key="setting" @click="goToSetting" :icon="SettingsIcon">
+              <span class="menu-text">系统设置</span>
+            </a-menu-item>
+          </template>
+          <a-menu-divider />
           <a-menu-item key="logout" @click="logout" :icon="LogOutIcon">
             <span class="menu-text">退出登录</span>
           </a-menu-item>
@@ -120,15 +121,6 @@
             </div>
           </div>
           <div class="info-item">
-            <div class="info-label">用户ID</div>
-            <div class="info-value user-id" v-if="!profileEditing">
-              {{ userStore.userIdLogin || '未设置' }}
-            </div>
-            <div class="info-value" v-else>
-              <a-input :value="userStore.userIdLogin || ''" disabled style="width: 240px" />
-            </div>
-          </div>
-          <div class="info-item">
             <div class="info-label">手机号</div>
             <div class="info-value" v-if="!profileEditing">
               {{ userStore.phoneNumber || '未设置' }}
@@ -180,7 +172,7 @@
 </template>
 
 <script setup>
-import { computed, ref, inject, h } from 'vue'
+import { computed, ref, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import DebugComponent from '@/components/DebugComponent.vue'
@@ -210,12 +202,20 @@ const MoonIcon = h(Moon, { size: '16' })
 const TerminalIcon = h(Terminal, { size: '16' })
 const SettingsIcon = h(Settings, { size: '16' })
 const LogOutIcon = h(LogOut, { size: '16' })
+const UserIcon = h(User, { size: '16' })
 
 // 调试面板状态
 const showDebug = ref(false)
 
-// Inject settings modal methods
-const { openSettingsModal } = inject('settingsModal', {})
+// Settings navigation
+const goToSettingsPage = () => {
+  router.push('/settings')
+}
+
+const goToProfile = () => {
+  profileModalVisible.value = false
+  router.push('/profile')
+}
 
 // 个人资料弹窗状态
 const profileModalVisible = ref(false)
@@ -279,8 +279,7 @@ const goToLogin = () => {
   router.push('/login')
 }
 
-const openDocs = () => {
-}
+const openDocs = () => {}
 
 const toggleTheme = () => {
   themeStore.toggleTheme()
@@ -288,9 +287,7 @@ const toggleTheme = () => {
 
 // 前往设置页
 const goToSetting = () => {
-  if (openSettingsModal) {
-    openSettingsModal()
-  }
+  goToSettingsPage()
 }
 
 // 打开个人资料页面

@@ -20,7 +20,7 @@ export const useConfigStore = defineStore('config', () => {
 
   function setConfigValue(key, value) {
     config.value[key] = value
-    configApi.updateConfigBatch({ [key]: value }).then((data) => {
+    return configApi.updateConfigBatch({ [key]: value }).then((data) => {
       console.debug('Success:', data)
       setConfig(data)
     })
@@ -33,7 +33,7 @@ export const useConfigStore = defineStore('config', () => {
     }
 
     // 发送到服务器
-    configApi.updateConfigBatch(items).then((data) => {
+    return configApi.updateConfigBatch(items).then((data) => {
       console.debug('Success:', data)
       setConfig(data)
     })

@@ -6,10 +6,21 @@
         <h3 class="title">用户管理</h3>
         <p class="description">管理系统用户，请谨慎操作。删除用户后该用户将无法登录系统。</p>
       </div>
-      <a-button type="primary" @click="showAddUserModal" class="add-btn">
-        <template #icon><PlusOutlined /></template>
-        添加用户
-      </a-button>
+      <div class="header-actions">
+        <a-segmented
+          :value="viewMode"
+          @change="(val) => (viewMode = val)"
+          :options="[
+            { label: '卡片', value: 'card' },
+            { label: '列表', value: 'list' }
+          ]"
+          size="small"
+        />
+        <a-button type="primary" @click="showAddUserModal" class="add-btn">
+          <template #icon><PlusOutlined /></template>
+          添加用户
+        </a-button>
+      </div>
     </div>
 
     <!-- 主内容区域 -->
@@ -19,7 +30,8 @@
           <a-alert type="error" :message="userManagement.error" show-icon />
         </div>
 
-        <div class="cards-container">
+        <!-- 卡片模式 -->
+        <div v-show="viewMode === 'card'" class="cards-container">
           <div v-if="userManagement.users.length === 0" class="empty-state">
             <a-empty description="暂无用户数据" />
           </div>
@@ -52,7 +64,7 @@
                         </span>
                       </div>
                     </div>
-                    <div class="user-id-row">ID: {{ user.user_id || '-' }}</div>
+                    <div class="user-id-row">{{ user.username }}</div>
                   </div>
                 </div>
               </div>
@@ -104,6 +116,77 @@
             </div>
           </div>
         </div>
+
+        <!-- 列表模式 -->
+        <div v-show="viewMode === 'list'" class="list-container">
+          <div v-if="userManagement.users.length === 0" class="empty-state">
+            <a-empty description="暂无用户数据" />
+          </div>
+          <a-table
+            v-else
+            :dataSource="userManagement.users"
+            :columns="tableColumns"
+            :pagination="false"
+            :loading="userManagement.loading"
+            rowKey="id"
+            size="middle"
+            class="user-table"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'user'">
+                <div class="table-user-cell">
+                  <div class="table-avatar">
+                    <img v-if="record.avatar" :src="record.avatar" :alt="record.username" class="avatar-img" />
+                    <div v-else class="avatar-placeholder">{{ record.username.charAt(0).toUpperCase() }}</div>
+                  </div>
+                  <div class="table-user-info">
+                    <span class="table-username">{{ record.username }}</span>
+                  </div>
+                </div>
+              </template>
+              <template v-if="column.key === 'role'">
+                <span class="role-icon-wrapper" :class="getRoleClass(record.role)">
+                  <UserLock v-if="record.role === 'superadmin'" :size="14" />
+                  <UserStar v-else-if="record.role === 'admin'" :size="14" />
+                  <User v-else :size="14" />
+                </span>
+                <span style="margin-left: 6px;">{{ record.role === 'superadmin' ? '超级管理员' : record.role === 'admin' ? '管理员' : '普通用户' }}</span>
+              </template>
+              <template v-if="column.key === 'phone'">
+                <span class="table-phone">{{ record.phone_number || '-' }}</span>
+              </template>
+              <template v-if="column.key === 'created_at'">
+                <span>{{ formatTime(record.created_at) }}</span>
+              </template>
+              <template v-if="column.key === 'last_login'">
+                <span>{{ formatTime(record.last_login) }}</span>
+              </template>
+              <template v-if="column.key === 'actions'">
+                <div class="table-actions">
+                  <a-tooltip title="编辑用户">
+                    <a-button type="link" size="small" @click="showEditUserModal(record)">
+                      <EditOutlined />
+                    </a-button>
+                  </a-tooltip>
+                  <a-tooltip title="删除用户">
+                    <a-button
+                      type="link"
+                      size="small"
+                      danger
+                      @click="confirmDeleteUser(record)"
+                      :disabled="
+                        record.id === userStore.userId ||
+                        (record.role === 'superadmin' && userStore.userRole !== 'superadmin')
+                      "
+                    >
+                      <DeleteOutlined />
+                    </a-button>
+                  </a-tooltip>
+                </div>
+              </template>
+            </template>
+          </a-table>
+        </div>
       </a-spin>
     </div>
 
@@ -124,31 +207,11 @@
             v-model:value="userManagement.form.username"
             placeholder="请输入用户名（2-20 个字符）"
             size="large"
-            @blur="validateAndGenerateUserId"
             :maxlength="20"
           />
           <div v-if="userManagement.form.usernameError" class="error-text">
             {{ userManagement.form.usernameError }}
           </div>
-        </a-form-item>
-
-        <!-- 显示自动生成的用户 ID -->
-        <a-form-item
-          v-if="userManagement.form.generatedUserId || userManagement.editMode"
-          label="用户 ID"
-          class="form-item"
-        >
-          <a-input
-            :value="userManagement.form.generatedUserId"
-            placeholder="自动生成"
-            size="large"
-            disabled
-            :addon-before="userManagement.editMode ? '已存在 ID' : '登录 ID'"
-          />
-          <div v-if="!userManagement.editMode" class="help-text">
-            此 ID 将用于登录，根据用户名自动生成
-          </div>
-          <div v-else class="help-text">编辑模式下不能修改用户 ID</div>
         </a-form-item>
 
         <!-- 手机号字段 -->
@@ -210,7 +273,7 @@
 </template>
 
 <script setup>
-import { reactive, onMounted, watch } from 'vue'
+import { reactive, onMounted, watch, ref } from 'vue'
 import { notification, Modal } from 'ant-design-vue'
 import { useUserStore } from '@/stores/user'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons-vue'
@@ -230,7 +293,6 @@ const userManagement = reactive({
   editUserId: null,
   form: {
     username: '',
-    generatedUserId: '',
     phoneNumber: '',
     password: '',
     confirmPassword: '',
@@ -241,28 +303,47 @@ const userManagement = reactive({
   displayPasswordFields: true
 })
 
-// 验证用户名并生成 user_id
-const validateAndGenerateUserId = async () => {
-  const username = userManagement.form.username.trim()
+// 视图模式
+const viewMode = ref('card')
 
-  userManagement.form.usernameError = ''
-  userManagement.form.generatedUserId = ''
-
-  if (!username) {
-    return
+// 表格列定义
+const tableColumns = [
+  {
+    title: '用户',
+    key: 'user',
+    dataIndex: 'username',
+    width: 200
+  },
+  {
+    title: '手机号',
+    key: 'phone',
+    dataIndex: 'phone_number',
+    width: 140
+  },
+  {
+    title: '角色',
+    key: 'role',
+    dataIndex: 'role',
+    width: 120
+  },
+  {
+    title: '创建时间',
+    key: 'created_at',
+    dataIndex: 'created_at',
+    width: 180
+  },
+  {
+    title: '最后登录',
+    key: 'last_login',
+    dataIndex: 'last_login',
+    width: 180
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 120
   }
-
-  if (userManagement.editMode) {
-    return
-  }
-
-  try {
-    const result = await userStore.validateUsernameAndGenerateUserId(username)
-    userManagement.form.generatedUserId = result.user_id
-  } catch (error) {
-    userManagement.form.usernameError = error.message || '用户名验证失败'
-  }
-}
+]
 
 // 验证手机号格式
 const validatePhoneNumber = (phone) => {
@@ -321,7 +402,6 @@ const showAddUserModal = () => {
   userManagement.editUserId = null
   userManagement.form = {
     username: '',
-    generatedUserId: '',
     phoneNumber: '',
     password: '',
     confirmPassword: '',
@@ -340,7 +420,6 @@ const showEditUserModal = (user) => {
   userManagement.editUserId = user.id
   userManagement.form = {
     username: user.username,
-    generatedUserId: user.user_id || '',
     phoneNumber: user.phone_number || '',
     password: '',
     confirmPassword: '',
@@ -501,6 +580,13 @@ onMounted(async () => {
         line-height: 1.4;
         margin-bottom: 16px;
       }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
     }
   }
 
@@ -693,6 +779,104 @@ onMounted(async () => {
                 border-color: var(--color-error-500);
                 color: var(--color-error-500);
               }
+            }
+          }
+        }
+      }
+    }
+
+    .list-container {
+      .user-table {
+        :deep(.ant-table-thead > tr > th) {
+          background: var(--gray-50);
+          color: var(--gray-700);
+          font-weight: 600;
+          font-size: 13px;
+          border-bottom: 1px solid var(--gray-150);
+        }
+
+        :deep(.ant-table-tbody > tr > td) {
+          border-bottom: 1px solid var(--gray-50);
+        }
+
+        :deep(.ant-table-tbody > tr:hover > td) {
+          background: var(--gray-25);
+        }
+
+        .table-user-cell {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .table-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gray-50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+
+            .avatar-img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .avatar-placeholder {
+              color: var(--gray-600);
+              font-weight: 500;
+              font-size: 13px;
+            }
+          }
+
+          .table-user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+
+            .table-username {
+              font-weight: 600;
+              font-size: 14px;
+              color: var(--gray-900);
+              line-height: 1.3;
+            }
+
+            .table-user-id {
+              font-size: 12px;
+              color: var(--gray-500);
+              font-family: 'Monaco', 'Consolas', monospace;
+              line-height: 1.3;
+            }
+          }
+        }
+
+        .table-phone {
+          font-size: 13px;
+          font-family: 'Monaco', 'Consolas', monospace;
+          color: var(--gray-700);
+        }
+
+        .table-actions {
+          display: flex;
+          gap: 4px;
+
+          :deep(.ant-btn-link) {
+            padding: 4px 6px;
+            color: var(--gray-600);
+            height: auto;
+            border-radius: 4px;
+
+            &:hover {
+              color: var(--main-700);
+              background: var(--gray-50);
+            }
+
+            &[danger]:hover {
+              color: var(--color-error-500);
+              background: var(--error-10);
             }
           }
         }

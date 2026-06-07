@@ -33,6 +33,16 @@
         <Copy v-else size="12" />
       </span>
 
+      <!-- 导出 PDF（仅农作物防治诊疗专家） -->
+      <span
+        v-if="isCropAgent"
+        class="item btn"
+        @click="exportPdf"
+        title="导出 PDF"
+      >
+        <FileText size="12" />
+      </span>
+
       <!-- 重试 -->
       <span
         v-if="showKey('regenerate')"
@@ -68,12 +78,16 @@
 import { ref, computed, reactive, watch } from 'vue'
 import { useClipboard } from '@vueuse/core'
 import { message } from 'ant-design-vue'
-import { ThumbsUp, ThumbsDown, Bot, Copy, Check, RotateCcw } from 'lucide-vue-next'
+import { ThumbsUp, ThumbsDown, Bot, Copy, Check, RotateCcw, FileText } from 'lucide-vue-next'
 import { agentApi } from '@/apis'
 
 const emit = defineEmits(['retry', 'openRefs'])
 const props = defineProps({
   message: Object,
+  agentId: {
+    type: String,
+    default: ''
+  },
   showRefs: {
     type: [Array, Boolean],
     default: () => false
@@ -83,6 +97,8 @@ const props = defineProps({
     default: false
   }
 })
+
+const isCropAgent = computed(() => props.agentId === 'CropAgent')
 
 const msg = ref(props.message)
 
@@ -182,6 +198,50 @@ const getModelName = (msg) => {
     return msg.meta.server_model_name
   }
   return null
+}
+
+// 导出 PDF
+const isPdfExporting = ref(false)
+
+const exportPdf = async () => {
+  if (isPdfExporting.value) return
+  const content = msg.value?.content
+  if (!content) {
+    message.warning('没有可导出的内容')
+    return
+  }
+
+  isPdfExporting.value = true
+  try {
+    const response = await agentApi.exportPdfReport(props.agentId, content)
+    const blob = await response.blob()
+
+    // 从 Content-Disposition 中提取文件名
+    const disposition = response.headers.get('Content-Disposition')
+    let filename = `crop_report_${Date.now()}`
+    if (disposition) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match) {
+        filename = match[1].replace(/['"]/g, '')
+      }
+    }
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    message.success('PDF 已导出')
+  } catch (error) {
+    console.error('导出 PDF 失败:', error)
+    message.error(error.message || '导出 PDF 失败')
+  } finally {
+    isPdfExporting.value = false
+  }
 }
 // Handle like action
 const likeThisResponse = async (msg) => {

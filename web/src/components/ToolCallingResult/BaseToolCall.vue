@@ -192,6 +192,7 @@ const formatResultData = (data) => {
 
 <style lang="less" scoped>
 .tool-call-display {
+  background: #fff;
   outline: 1px solid var(--gray-150);
   border-radius: 8px;
   overflow: hidden;

@@ -957,8 +957,7 @@ const getAuthHeaders = () => {
   return userStore.getAuthHeaders()
 }
 
-const openDocLink = () => {
-}
+const openDocLink = () => {}
 
 const chunkData = async () => {
   if (!databaseId.value) {

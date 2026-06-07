@@ -17,9 +17,12 @@ PUBLIC_PATHS = [
     r"^/api/auth/token$",  # 登录
     r"^/api/auth/check-first-run$",  # 检查是否首次运行
     r"^/api/auth/initialize$",  # 初始化系统
+    r"^/api/webhook/receive/[^/]+$",  # Webhook 接收
+    r"^/api/wechat/receive$",  # 微信公众号验证和消息接收
     r"^/api$",  # Health Check
     r"^/api/system/health$",  # Health Check
     r"^/api/system/info$",  # 获取系统信息配置
+    r"^/api/storage/",  # MinIO 文件存储代理（公开访问）
 ]
 
 
@@ -60,8 +63,12 @@ async def get_current_user(token: str | None = Depends(oauth2_scheme), db: Async
 
     # 查找用户（异步版本）
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
-    result = await db.execute(select(User).filter(User.id == int(user_id)))
+    result = await db.execute(
+        select(User).options(selectinload(User.user_address))
+        .filter(User.id == int(user_id))
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception

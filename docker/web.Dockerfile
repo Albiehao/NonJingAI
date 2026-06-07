@@ -4,7 +4,7 @@ WORKDIR /app
 ENV TZ=Asia/Shanghai
 
 # 安装 pnpm
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@9
 
 # 复制 package.json 和 pnpm-lock.yaml
 COPY ./web/package*.json ./
@@ -25,8 +25,8 @@ EXPOSE 5173
 FROM node:20-alpine AS build-stage
 WORKDIR /app
 
-# 安装 pnpm
-RUN npm install -g pnpm@latest
+# 安装 pnpm（锁定 v9 以兼容 Node.js 20）
+RUN npm install -g pnpm@9
 
 # 复制依赖文件
 COPY ./web/package*.json ./
@@ -45,4 +45,5 @@ COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY ./docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY ./docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+EXPOSE 443
 CMD ["nginx", "-g", "daemon off;"]

@@ -9,8 +9,12 @@ export const useUserStore = defineStore('user', () => {
   const username = ref('')
   const userIdLogin = ref('')
   const phoneNumber = ref('')
+  const email = ref('')
   const avatar = ref('')
   const userRole = ref('')
+  const address = ref('')
+  const latitude = ref(null)
+  const longitude = ref(null)
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
@@ -52,6 +56,7 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userIdLogin.value = data.user_id_login
       phoneNumber.value = data.phone_number || ''
+      email.value = data.email || ''
       avatar.value = data.avatar || ''
       userRole.value = data.role
 
@@ -72,8 +77,12 @@ export const useUserStore = defineStore('user', () => {
     username.value = ''
     userIdLogin.value = ''
     phoneNumber.value = ''
+    email.value = ''
     avatar.value = ''
     userRole.value = ''
+    address.value = ''
+    latitude.value = null
+    longitude.value = null
 
     // 清除 agentStore 状态，确保重新登录时能正确加载数据
     const agentStore = useAgentStore()
@@ -106,6 +115,7 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userIdLogin.value = data.user_id_login
       phoneNumber.value = data.phone_number || ''
+      email.value = data.email || ''
       avatar.value = data.avatar || ''
       userRole.value = data.role
 
@@ -299,8 +309,12 @@ export const useUserStore = defineStore('user', () => {
       username.value = userData.username
       userIdLogin.value = userData.user_id
       phoneNumber.value = userData.phone_number || ''
+      email.value = userData.email || ''
       avatar.value = userData.avatar || ''
       userRole.value = userData.role
+      address.value = userData.address || ''
+      latitude.value = userData.latitude || null
+      longitude.value = userData.longitude || null
 
       return userData
     } catch (error) {
@@ -350,8 +364,12 @@ export const useUserStore = defineStore('user', () => {
     username,
     userIdLogin,
     phoneNumber,
+    email,
     avatar,
     userRole,
+    address,
+    latitude,
+    longitude,
 
     // 计算属性
     isLoggedIn,

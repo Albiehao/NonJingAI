@@ -31,7 +31,7 @@ async def _fetch(endpoint: str, params: dict | None = None) -> dict:
 
 @tool(
     name_or_callable="get_agrochemical_by_name",
-    description="根据产品名称查询农资（农药、化肥等）的详细信息，包括品牌、价格、剂型、使用方法、注意事项等。输入产品名称即可。",
+    description="根据产品名称查询农资（农药、化肥等）的详细信息，包括品牌、价格、剂型、使用方法、注意事项，购买链接等。输入产品名称即可。",
 )
 def get_agrochemical_by_name(
     product_name: Annotated[str, Field(description="农资产品名称，如'草甘膦'、'吡虫啉'")],

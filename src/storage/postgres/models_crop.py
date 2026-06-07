@@ -3,7 +3,10 @@
 from sqlalchemy import (
     BigInteger,
     Column,
+    Date,
     DateTime,
+    Float,
+    ForeignKey,
     Integer,
     String,
     Text,
@@ -113,3 +116,50 @@ class CropUserCrop(Base):
         onupdate=text("CURRENT_TIMESTAMP"),
     )
     deleted_at = Column(DateTime, nullable=True)
+
+
+class Crop(Base):
+    """农作物字典（Crop Agent 用，管理员维护）"""
+
+    __tablename__ = "crops"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False)
+    scientific_name = Column(String(100), nullable=True)
+    category = Column(String(50), nullable=True)
+    icon = Column(String(2048), nullable=True)
+    description = Column(Text, nullable=True)
+    created_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+    )
+    deleted_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (UniqueConstraint("name"),)
+
+
+class UserCrop(Base):
+    """用户-农作物关联（Crop Agent 用）"""
+
+    __tablename__ = "user_crops"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False)
+    crop_id = Column(Integer, ForeignKey("crops.id"), nullable=False)
+    nickname = Column(String(100), nullable=True)
+    planted_at = Column(Date, nullable=True)
+    area = Column(Float, nullable=True)
+    status = Column(String(20), default="active")
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+    )
+    deleted_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (UniqueConstraint("user_id", "crop_id"),)

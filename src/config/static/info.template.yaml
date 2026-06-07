@@ -4,24 +4,20 @@
 # 组织信息
 organization:
   name: "禾影千寻"           # 完整组织名称
-  logo: "/image.png"       # Logo文件路径（放在 web/public 目录下）
+  logo: "/logo.png"       # Logo文件路径（放在 web/public 目录下）
   avatar: "/avatar.jpg"      # 头像文件路径（放在 web/public 目录下）
-  login_bg: "/login-bg.jpg"  # 登录背景图片路径（放在 web/public 目录下）
+  login_bg: "/farm-bg.jpg"  # 登录背景图片路径（放在 web/public 目录下）
 
 # 项目信息
 branding:
   name: "QianXun"
   title: "QianXun: 更智能的知识库智能体平台"     # 系统标题
-  subtitle: "大模型驱动的知识库智能体平台"          # 副标题
+  subtitle: "大模型驱动的多模态智能 Agent 平台"          # 副标题
+  description: "融合 RAG 知识库、知识图谱与多模态识别，以 Agent 驱动智能分析与决策"     # 描述
 
 features: []
 
-actions:
-  - name: "演示视频"
-    icon: "video"
-    url: "https://www.bilibili.com/video/BV1DF14BTETq"
-
-
+actions: []
 
 # 页脚信息
 footer:

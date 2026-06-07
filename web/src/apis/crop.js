@@ -156,7 +156,7 @@ export function uploadFile(file, bucket = 'crop-images') {
   return fetch(`${CROP_API_PREFIX}/file/upload`, {
     method: 'POST',
     body: fd
-  }).then(r => r.json())
+  }).then((r) => r.json())
 }
 
 // ===== Token 管理 =====

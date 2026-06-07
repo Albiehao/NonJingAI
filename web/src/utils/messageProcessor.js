@@ -73,7 +73,36 @@ export class MessageProcessor {
           status: 'loading'
         }
         conversations.push(currentConv)
-      } else if (item.type === 'ai' && currentConv) {
+      } else if (item.type === 'ai') {
+        // AI message without preceding human (e.g. push notification)
+        // -> start a new bubble instead of appending to previous one
+        if (currentConv) {
+          // Check if current conv already has an AI message — if so, finalize it and start a new bubble
+          const hasAi = currentConv.messages.some((m) => m.type === 'ai')
+          if (hasAi) {
+            for (let i = currentConv.messages.length - 1; i >= 0; i--) {
+              if (currentConv.messages[i].type === 'ai') {
+                currentConv.messages[i].isLast = true
+                currentConv.status = 'finished'
+                break
+              }
+            }
+            currentConv = {
+              messages: [item],
+              status: 'loading'
+            }
+            conversations.push(currentConv)
+            continue
+          }
+        }
+        // First AI message — attach to the current conv or start one
+        if (!currentConv) {
+          currentConv = {
+            messages: [],
+            status: 'loading'
+          }
+          conversations.push(currentConv)
+        }
         currentConv.messages.push(item)
       }
     }

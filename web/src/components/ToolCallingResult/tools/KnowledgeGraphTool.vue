@@ -38,9 +38,9 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick, onMounted, onUpdated } from 'vue'
+import { computed, ref, watch, nextTick, onMounted } from 'vue'
 import BaseToolCall from '../BaseToolCall.vue'
-import { DeploymentUnitOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import GraphCanvas from '@/components/GraphCanvas.vue'
 
 const props = defineProps({
@@ -63,7 +63,6 @@ const parseData = (content) => {
 
 const graphContainer = ref(null)
 const graphContainerRef = ref(null)
-const isVisible = ref(false)
 const isRefreshing = ref(false)
 
 const query = computed(() => {
@@ -77,7 +76,6 @@ const query = computed(() => {
       return ''
     }
   }
-  // Try common keys for KG queries
   if (typeof parsedArgs === 'object') {
     return parsedArgs.query || parsedArgs.keywords || parsedArgs.q || parsedArgs.entities || ''
   }
@@ -91,44 +89,38 @@ const graphData = computed(() => {
   const edges = []
   let edgeId = 0
 
-  // 处理新格式数据：只关注 triples 字段
-  if (data && typeof data === 'object' && 'triples' in data) {
+  if (data && typeof data === 'object' && Array.isArray(data.nodes) && Array.isArray(data.edges)) {
+    data.nodes.forEach((node) => {
+      const id = node.id || node.name || ''
+      const name = node.name || node.id || ''
+      if (id && !nodes.has(id)) {
+        nodes.set(id, { id, name, ...node })
+      }
+    })
+    data.edges.forEach((edge) => {
+      const sourceId = edge.source_id || edge.source || ''
+      const targetId = edge.target_id || edge.target || ''
+      if (sourceId && targetId) {
+        edges.push({
+          source_id: sourceId,
+          target_id: targetId,
+          type: edge.type || '',
+          id: edge.id || `edge_${edgeId++}`
+        })
+      }
+    })
+  } else if (data && typeof data === 'object' && 'triples' in data) {
     const { triples = [] } = data
-
-    // 处理 triples 数据
     triples.forEach((triple) => {
       if (Array.isArray(triple) && triple.length >= 3) {
         const [source, relation, target] = triple
-
-        // 添加源节点
-        if (source && typeof source === 'string') {
-          if (!nodes.has(source)) {
-            nodes.set(source, {
-              id: source,
-              name: source
-            })
-          }
+        if (source && typeof source === 'string' && !nodes.has(source)) {
+          nodes.set(source, { id: source, name: source })
         }
-
-        // 添加目标节点
-        if (target && typeof target === 'string') {
-          if (!nodes.has(target)) {
-            nodes.set(target, {
-              id: target,
-              name: target
-            })
-          }
+        if (target && typeof target === 'string' && !nodes.has(target)) {
+          nodes.set(target, { id: target, name: target })
         }
-
-        // 添加边
-        if (
-          source &&
-          target &&
-          relation &&
-          typeof source === 'string' &&
-          typeof target === 'string' &&
-          typeof relation === 'string'
-        ) {
+        if (source && target && relation && typeof source === 'string' && typeof target === 'string' && typeof relation === 'string') {
           edges.push({
             source_id: source,
             target_id: target,
@@ -146,72 +138,30 @@ const graphData = computed(() => {
   }
 })
 
-// 统计信息
 const totalNodes = computed(() => graphData.value.nodes.length)
 const totalRelations = computed(() => graphData.value.edges.length)
 
-// 检查容器是否可见
-const checkVisibility = () => {
-  if (graphContainerRef.value) {
-    const rect = graphContainerRef.value.getBoundingClientRect()
-    isVisible.value = rect.width > 0 && rect.height > 0
-  }
-}
-
-// 当数据变化时强制刷新图表
-watch(
-  () => props.toolCall,
-  async (newData, oldData) => {
-    if (newData !== oldData) {
-      await nextTick()
-      if (graphContainer.value && typeof graphContainer.value.refreshGraph === 'function') {
-        setTimeout(() => {
-          graphContainer.value.refreshGraph()
-        }, 300)
-      }
-    }
-  },
-  { deep: true }
-)
-
-// 组件挂载后确保图表正确初始化
-onMounted(() => {
-  checkVisibility()
-  if (graphData.value.nodes.length > 0 || graphData.value.edges.length > 0) {
-    nextTick(() => {
-      if (graphContainer.value && typeof graphContainer.value.refreshGraph === 'function') {
-        setTimeout(() => {
-          graphContainer.value.refreshGraph()
-        }, 300)
-      }
-    })
-  }
-
-  const visibilityChecker = setInterval(() => {
-    checkVisibility()
-    if (
-      isVisible.value &&
-      graphContainer.value &&
-      typeof graphContainer.value.refreshGraph === 'function'
-    ) {
-      graphContainer.value.refreshGraph()
-      clearInterval(visibilityChecker)
-    }
-  }, 500)
-
-  setTimeout(() => {
-    clearInterval(visibilityChecker)
-  }, 5000)
+// 数据变化时才刷新图表，仅一次
+const dataKey = computed(() => {
+  const content = props.toolCall.tool_call_result?.content
+  return typeof content === 'string' ? content.slice(0, 200) : JSON.stringify(content)
 })
 
-onUpdated(() => {
-  checkVisibility()
+watch(dataKey, () => {
+  if (graphData.value.nodes.length === 0 && graphData.value.edges.length === 0) return
+  nextTick(() => {
+    if (graphContainer.value?.refreshGraph) {
+      setTimeout(() => graphContainer.value.refreshGraph(), 300)
+    }
+  })
+})
+
+// 组件挂载后刷新一次
+onMounted(() => {
   if (graphData.value.nodes.length > 0 || graphData.value.edges.length > 0) {
     nextTick(() => {
-      if (graphContainer.value && typeof graphContainer.value.refreshGraph === 'function') {
-        setTimeout(() => {
-          graphContainer.value.refreshGraph()
-        }, 300)
+      if (graphContainer.value?.refreshGraph) {
+        setTimeout(() => graphContainer.value.refreshGraph(), 300)
       }
     })
   }
@@ -219,12 +169,10 @@ onUpdated(() => {
 
 const refreshGraph = () => {
   isRefreshing.value = true
-  if (graphContainer.value && typeof graphContainer.value.refreshGraph === 'function') {
+  if (graphContainer.value?.refreshGraph) {
     setTimeout(() => {
       graphContainer.value.refreshGraph()
-      setTimeout(() => {
-        isRefreshing.value = false
-      }, 500)
+      setTimeout(() => { isRefreshing.value = false }, 500)
     }, 300)
   } else {
     isRefreshing.value = false

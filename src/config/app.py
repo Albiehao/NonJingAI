@@ -73,6 +73,16 @@ class Config(BaseModel):
     default_agent_id: str = Field(default="", description="默认智能体ID")
 
     # ============================================================
+    # 邮件服务配置
+    # ============================================================
+    smtp_host: str = Field(default="smtp.qq.com", description="SMTP 服务器地址")
+    smtp_port: int = Field(default=465, description="SMTP 服务器端口")
+    smtp_user: str = Field(default="", description="SMTP 用户名")
+    smtp_password: str = Field(default="", description="SMTP 密码/授权码")
+    smtp_from_name: str = Field(default="千寻农业助手", description="发件人名称")
+    smtp_from_email: str = Field(default="", description="发件人邮箱（默认同 smtp_user）")
+
+    # ============================================================
     # 模型信息（只读，不持久化）
     # ============================================================
     model_names: dict[str, ChatModelProvider] = Field(

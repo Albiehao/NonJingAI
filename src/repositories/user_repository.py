@@ -1,17 +1,15 @@
 """用户数据访问层 - Repository"""
 
-from datetime import UTC
-from datetime import datetime as dt
 from typing import Annotated, Any
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from src.storage.postgres.manager import pg_manager
-from src.storage.postgres.models_business import User
+from src.storage.postgres.models_business import User, UserAddress
+from src.storage.postgres.models_crop import Crop, UserCrop
 from src.utils.check_geo_util import get_geo_location
-
-# 使用 naive datetime 以兼容 PostgreSQL TIMESTAMP WITHOUT TIME ZONE 列
-_utc_now = dt.now(UTC).replace(tzinfo=None)
+from src.utils.datetime_utils import utc_now_naive
 
 
 class UserRepository:
@@ -20,19 +18,25 @@ class UserRepository:
     async def get_by_id(self, id: int) -> User | None:
         """根据 ID 获取用户"""
         async with pg_manager.get_async_session_context() as session:
-            result = await session.execute(select(User).where(User.id == id))
+            result = await session.execute(
+                select(User).options(selectinload(User.user_address)).where(User.id == id)
+            )
             return result.scalar_one_or_none()
 
     async def get_by_user_id(self, user_id: str) -> User | None:
         """根据 user_id 获取用户"""
         async with pg_manager.get_async_session_context() as session:
-            result = await session.execute(select(User).where(User.user_id == user_id))
+            result = await session.execute(
+                select(User).options(selectinload(User.user_address)).where(User.user_id == user_id)
+            )
             return result.scalar_one_or_none()
 
     async def get_by_phone(self, phone: str) -> User | None:
         """根据手机号获取用户"""
         async with pg_manager.get_async_session_context() as session:
-            result = await session.execute(select(User).where(User.phone_number == phone))
+            result = await session.execute(
+                select(User).options(selectinload(User.user_address)).where(User.phone_number == phone)
+            )
             return result.scalar_one_or_none()
 
     async def list_users(
@@ -40,7 +44,7 @@ class UserRepository:
     ) -> list[User]:
         """获取用户列表"""
         async with pg_manager.get_async_session_context() as session:
-            query = select(User).where(User.is_deleted == 0)
+            query = select(User).options(selectinload(User.user_address)).where(User.is_deleted == 0)
             if role is not None:
                 query = query.where(User.role == role)
             query = query.order_by(User.id.asc()).offset(skip).limit(limit)
@@ -61,7 +65,9 @@ class UserRepository:
     async def update(self, id: int, data: dict[str, Any]) -> User | None:
         """更新用户"""
         async with pg_manager.get_async_session_context() as session:
-            result = await session.execute(select(User).where(User.id == id, User.is_deleted == 0))
+            result = await session.execute(
+                select(User).options(selectinload(User.user_address)).where(User.id == id, User.is_deleted == 0)
+            )
             user = result.scalar_one_or_none()
             if user is None:
                 return None
@@ -73,12 +79,19 @@ class UserRepository:
     async def geo_context_update(self, id: int, geo_context: dict[str, Any]) -> User | None:
         """更新用户地理位置信息"""
         async with pg_manager.get_async_session_context() as session:
-            result = await session.execute(select(User).where(User.id == id, User.is_deleted == 0))
+            result = await session.execute(
+                select(User).options(selectinload(User.user_address)).where(User.id == id, User.is_deleted == 0)
+            )
             user = result.scalar_one_or_none()
             if user is None:
                 return None
-            user.geo_context = geo_context
-            return  user
+            if user.user_address is None:
+                ua = UserAddress(user_id=user.id, geo_context=geo_context)
+                session.add(ua)
+                user.user_address = ua
+            else:
+                user.user_address.geo_context = geo_context
+        return user
 
     async def soft_delete(self, id: int, username: str | None = None, phone_number: str | None = None) -> bool:
         """软删除用户"""
@@ -89,7 +102,7 @@ class UserRepository:
                 return False
             user.is_deleted = 1
 
-            user.deleted_at = _utc_now()
+            user.deleted_at = utc_now_naive()
             if username:
                 import hashlib
 
@@ -124,6 +137,48 @@ class UserRepository:
             result = await session.execute(select(User.user_id))
             return [uid for (uid,) in result.all()]
 
+    async def get_users_by_crop_names(self, crop_names: list[str]) -> list[User]:
+        """根据农作物名称查找用户"""
+        if not crop_names:
+            return []
+        async with pg_manager.get_async_session_context() as session:
+            crop_ids_result = await session.execute(
+                select(Crop.id).where(Crop.name.in_(crop_names), Crop.deleted_at.is_(None))
+            )
+            crop_ids = [row[0] for row in crop_ids_result.all()]
+            if not crop_ids:
+                return []
+            user_ids_result = await session.execute(
+                select(UserCrop.user_id)
+                .where(UserCrop.crop_id.in_(crop_ids), UserCrop.deleted_at.is_(None))
+                .distinct()
+            )
+            user_pk_ids = [row[0] for row in user_ids_result.all()]
+            if not user_pk_ids:
+                return []
+            result = await session.execute(
+                select(User)
+                .options(selectinload(User.user_address))
+                .where(User.id.in_(user_pk_ids), User.is_deleted == 0)
+            )
+            return list(result.scalars().all())
+
+    async def get_users_by_address_contains(self, text: str) -> list[User]:
+        """根据地址模糊查找用户"""
+        if not text:
+            return []
+        async with pg_manager.get_async_session_context() as session:
+            result = await session.execute(
+                select(User)
+                .options(selectinload(User.user_address))
+                .join(UserAddress, User.id == UserAddress.user_id)
+                .where(
+                    User.is_deleted == 0,
+                    UserAddress.address.ilike(f"%{text}%"),
+                )
+            )
+            return list(result.unique().scalars().all())
+
     async def get_user_in_geo(self, geo_context: dict[str, float], radius_km: float = 10) -> list[User]:
         """获取用户在 radius_km 公里范围内"""
         async with pg_manager.get_async_session_context() as session:
@@ -131,19 +186,24 @@ class UserRepository:
             if not center:
                 return []
 
-            # 查询所有有位置信息的用户
-            query = select(User).where(
-                User.is_deleted == 0,
-                User.geo_context.is_not(None)
+            from sqlalchemy.orm import contains_eager
+
+            result = await session.execute(
+                select(User)
+                .join(UserAddress, User.id == UserAddress.user_id)
+                .options(contains_eager(User.user_address))
+                .where(
+                    User.is_deleted == 0,
+                    UserAddress.geo_context.is_not(None)
+                )
             )
-            result = await session.execute(query)
-            users = result.scalars().all()
+            users = result.unique().scalars().all()
 
             # 应用层过滤
             radius_meters = radius_km * 1000
             return [
                 user for user in users
-                if (user_loc := get_geo_location(user.geo_context))
+                if (user_loc := get_geo_location(user.user_address.geo_context))
                    and center.distance_to(user_loc) <= radius_meters
             ]
 

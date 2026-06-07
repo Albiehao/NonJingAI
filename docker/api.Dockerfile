@@ -31,6 +31,8 @@ RUN set -ex \
         ffmpeg \
         libsm6 \
         libxext6 \
+        fonts-noto-cjk \
+        fontconfig \
     # (D) 清理垃圾，减小体积
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

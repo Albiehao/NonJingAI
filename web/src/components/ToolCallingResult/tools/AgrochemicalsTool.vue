@@ -1,5 +1,5 @@
 <template>
-  <BaseToolCall :tool-call="toolCall" :hide-params="true" default-expanded>
+  <BaseToolCall :tool-call="toolCall" :hide-params="true">
     <template #header>
       <div class="sep-header">
         <span class="note">农资查询</span>
@@ -12,16 +12,23 @@
         <!-- 单个产品详情 -->
         <div class="product-detail" v-if="productDetail">
           <div class="product-card">
-            <img v-if="productDetail.main_image" :src="productDetail.main_image" class="product-image" @error="$event.target.style.display='none'" />
+            <img
+              v-if="productDetail.main_image"
+              :src="productDetail.main_image"
+              class="product-image"
+              @error="$event.target.style.display = 'none'"
+            />
             <div class="product-header">
               <h4 class="product-name">{{ productDetail.product_name }}</h4>
-              <span class="product-brand" v-if="productDetail.brand">{{ productDetail.brand }}</span>
+              <span class="product-brand" v-if="productDetail.brand">{{
+                productDetail.brand
+              }}</span>
             </div>
-            <div class="product-price" v-if="productDetail.price">
-              ¥{{ productDetail.price }}
-            </div>
+            <div class="product-price" v-if="productDetail.price">¥{{ productDetail.price }}</div>
             <div class="product-links" v-if="productDetail.purchase_links">
-              <a :href="productDetail.purchase_links" target="_blank" class="buy-link">查看购买渠道 →</a>
+              <a :href="productDetail.purchase_links" target="_blank" class="buy-link"
+                >查看购买渠道 →</a
+              >
             </div>
             <div class="product-specs">
               <div class="spec-item" v-if="productDetail.formulation">
@@ -135,10 +142,13 @@ const toolName = computed(() => {
 const searchKeyword = computed(() => {
   const args = props.toolCall.args || props.toolCall.function?.arguments
   if (!args) return ''
-  if (typeof args === 'object') return args.keyword || args.product_name || args.agrochemical_id || args.category_id || ''
+  if (typeof args === 'object')
+    return args.keyword || args.product_name || args.agrochemical_id || args.category_id || ''
   try {
     const parsed = JSON.parse(args)
-    return parsed.keyword || parsed.product_name || parsed.agrochemical_id || parsed.category_id || ''
+    return (
+      parsed.keyword || parsed.product_name || parsed.agrochemical_id || parsed.category_id || ''
+    )
   } catch {
     return ''
   }
@@ -146,7 +156,10 @@ const searchKeyword = computed(() => {
 
 // 单个产品详情
 const productDetail = computed(() => {
-  if (parsedResult.value.product_name && (toolName.value.includes('agrochemical') || toolName.value.includes('农资'))) {
+  if (
+    parsedResult.value.product_name &&
+    (toolName.value.includes('agrochemical') || toolName.value.includes('农资'))
+  ) {
     return parsedResult.value
   }
   return null

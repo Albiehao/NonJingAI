@@ -301,13 +301,13 @@ onUnmounted(() => {
 
 .chunk-item:hover {
   border-color: var(--main-color);
-  box-shadow: 0 2px 8px rgba(1, 97, 121, 0.1);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
 }
 
 /* .chunk-item.active {
   border-color: var(--main-color);
   background: var(--main-50);
-  box-shadow: 0 2px 8px rgba(1, 97, 121, 0.2);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.2);
 } */
 /*
 .chunk-item.highlighted {

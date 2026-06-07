@@ -33,7 +33,11 @@ class User(Base):
     user_id = Column(String, nullable=False, unique=True, index=True)  # 登录ID
     phone_number = Column(String, nullable=True, unique=True, index=True)  # 手机号
     avatar = Column(String, nullable=True)  # 头像URL
-    geo_context = Column(JSON, nullable=True) # 地理位置信息
+    email = Column(String(255), nullable=True, unique=True)
+    email_verified = Column(Boolean, nullable=False, default=False)
+    email_verification_code = Column(String(8), nullable=True)
+    email_verification_expires_at = Column(DateTime, nullable=True)
+    user_address = relationship("UserAddress", back_populates="user", uselist=False, cascade="all, delete-orphan")
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default="user")  # 角色: superadmin, admin, user
     created_at = Column(DateTime, default=utc_now_naive)
@@ -60,8 +64,16 @@ class User(Base):
             "user_id": self.user_id,
             "phone_number": self.phone_number,
             "avatar": self.avatar,
+            "email": self.email,
+            "email_verified": self.email_verified,
             "role": self.role,
-            "geo_context": self.geo_context,
+            "geo_context": self.user_address.geo_context if self.user_address else None,
+            "address": self.user_address.address if self.user_address else None,
+            "latitude": self.user_address.latitude if self.user_address else None,
+            "longitude": self.user_address.longitude if self.user_address else None,
+            "geohash_10km": self.user_address.geohash_10km if self.user_address else None,
+            "geohash_20km": self.user_address.geohash_20km if self.user_address else None,
+            "geohash": self.user_address.geohash if self.user_address else None,
             "created_at": format_utc_datetime(self.created_at),
             "last_login": format_utc_datetime(self.last_login),
             "login_failed_count": self.login_failed_count,
@@ -115,6 +127,41 @@ class User(Base):
             # 计算锁定直到什么时间
             self.login_locked_until = utc_now_naive() + timedelta(minutes=lock_duration_minutes)
             # 可选：这里可以添加日志记录或发送通知逻辑
+
+
+class UserAddress(Base):
+    """用户地址信息表"""
+
+    __tablename__ = "user_addresses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    address = Column(String(500), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    geohash_10km = Column(String(12), nullable=True)
+    geohash_20km = Column(String(10), nullable=True)
+    geohash = Column(String(12), nullable=True)
+    geo_context = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    user = relationship("User", back_populates="user_address")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "address": self.address,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "geohash_10km": self.geohash_10km,
+            "geohash_20km": self.geohash_20km,
+            "geohash": self.geohash,
+            "geo_context": self.geo_context,
+            "created_at": format_utc_datetime(self.created_at),
+            "updated_at": format_utc_datetime(self.updated_at),
+        }
 
 
 class AgentConfig(Base):
@@ -365,95 +412,118 @@ class MessageFeedback(Base):
         }
 
 
-class MCPServer(Base):
-    """MCP 服务器配置模型"""
 
-    __tablename__ = "mcp_servers"
+class WebhookSource(Base):
+    """Webhook 推送源配置"""
 
-    # 核心字段 - name 作为主键
-    name = Column(String(100), primary_key=True, comment="服务器名称（唯一标识）")
-    description = Column(String(500), nullable=True, comment="描述")
+    __tablename__ = "webhook_sources"
 
-    # 连接配置
-    transport = Column(String(20), nullable=False, comment="传输类型：sse/streamable_http/stdio")
-    url = Column(String(500), nullable=True, comment="服务器 URL（sse/streamable_http）")
-    command = Column(String(500), nullable=True, comment="命令（stdio）")
-    args = Column(JSON, nullable=True, comment="命令参数数组（stdio）")
-    headers = Column(JSON, nullable=True, comment="HTTP 请求头")
-    timeout = Column(Integer, nullable=True, comment="HTTP 超时时间（秒）")
-    sse_read_timeout = Column(Integer, nullable=True, comment="SSE 读取超时（秒）")
-
-    # UI 增强字段
-    tags = Column(JSON, nullable=True, comment="标签数组")
-    icon = Column(String(50), nullable=True, comment="图标（emoji）")
-
-    # 状态字段
-    enabled = Column(Integer, nullable=False, default=1, comment="是否启用：1=是，0=否")
-    disabled_tools = Column(JSON, nullable=True, comment="禁用的工具名称列表")
-
-    # 用户追踪
-    created_by = Column(String(100), nullable=False, comment="创建人用户名")
-    updated_by = Column(String(100), nullable=False, comment="修改人用户名")
-
-    # 时间戳
-    created_at = Column(DateTime, default=utc_now_naive, comment="创建时间")
-    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, comment="更新时间")
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, comment="名称")
+    description = Column(Text, nullable=True, comment="描述")
+    secret_token = Column(String(255), nullable=False, unique=True, comment="密钥令牌，用于 URL 鉴权")
+    agent_id = Column(String(64), nullable=False, comment="注入会话的智能体 ID")
+    prompt_template = Column(Text, nullable=False, comment="个性化提示词模板，支持 {{user.*}} 和 {{webhook.*}} 变量")
+    extra_prompt = Column(Text, nullable=True, comment="额外提示词，附加到智能体基础提示词之后")
+    is_active = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    send_to_all = Column(Boolean, nullable=False, default=True, comment="是否推送给所有用户")
+    created_by = Column(String(64), nullable=True)
+    updated_by = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "id": self.id,
             "name": self.name,
             "description": self.description,
-            "transport": self.transport,
-            "url": self.url,
-            "command": self.command,
-            "args": self.args or [],
-            "headers": self.headers or {},
-            "timeout": self.timeout,
-            "sse_read_timeout": self.sse_read_timeout,
-            "tags": self.tags or [],
-            "icon": self.icon,
-            "enabled": bool(self.enabled),
-            "disabled_tools": self.disabled_tools or [],
+            "secret_token": self.secret_token,
+            "agent_id": self.agent_id,
+            "prompt_template": self.prompt_template,
+            "extra_prompt": self.extra_prompt or "",
+            "is_active": bool(self.is_active),
+            "send_to_all": bool(self.send_to_all),
             "created_by": self.created_by,
             "updated_by": self.updated_by,
             "created_at": format_utc_datetime(self.created_at),
             "updated_at": format_utc_datetime(self.updated_at),
         }
 
-    def to_mcp_config(self) -> dict[str, Any]:
-        """转换为 MCP 配置格式（用于加载到 MCP_SERVERS 缓存）"""
-        import json
 
-        config = {"transport": self.transport}
-        if self.url:
-            config["url"] = self.url
-        if self.command:
-            config["command"] = self.command
-        # args 只用于 stdio 传输类型，必须是列表
-        if self.transport == "stdio" and self.args:
-            if isinstance(self.args, list):
-                config["args"] = self.args
-            elif isinstance(self.args, str):
-                try:
-                    config["args"] = json.loads(self.args)
-                except json.JSONDecodeError:
-                    pass
-        # headers 只用于 sse/streamable_http 传输类型
-        if self.transport in ("sse", "streamable_http") and self.headers:
-            if isinstance(self.headers, dict):
-                config["headers"] = self.headers
-            elif isinstance(self.headers, str):
-                try:
-                    config["headers"] = json.loads(self.headers)
-                except json.JSONDecodeError:
-                    pass
-        if self.timeout is not None:
-            config["timeout"] = self.timeout
-        if self.sse_read_timeout is not None:
-            config["sse_read_timeout"] = self.sse_read_timeout
-        if self.disabled_tools:
-            config["disabled_tools"] = self.disabled_tools
-        return config
+class WebhookEvent(Base):
+    """Webhook 推送事件记录"""
+
+    __tablename__ = "webhook_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_id = Column(Integer, ForeignKey("webhook_sources.id"), nullable=False, index=True)
+    raw_body = Column(Text, nullable=True, comment="原始请求体")
+    status = Column(String(20), nullable=False, default="pending", comment="状态: pending/processing/completed/failed")
+    error_message = Column(Text, nullable=True, comment="错误信息")
+    created_at = Column(DateTime, default=utc_now_naive)
+    processed_at = Column(DateTime, nullable=True)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "source_id": self.source_id,
+            "raw_body": self.raw_body,
+            "status": self.status,
+            "error_message": self.error_message,
+            "created_at": format_utc_datetime(self.created_at),
+            "processed_at": format_utc_datetime(self.processed_at),
+        }
+
+
+class WechatBinding(Base):
+    """微信公众平台绑定记录"""
+
+    __tablename__ = "wechat_bindings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    open_id = Column(String(128), nullable=True, unique=True, comment="微信 OpenID")
+    union_id = Column(String(128), nullable=True, comment="微信 UnionID")
+    binding_token = Column(String(64), nullable=False, unique=True, comment="绑定令牌")
+    token_expires_at = Column(DateTime, nullable=False, comment="令牌过期时间")
+    is_bound = Column(Boolean, nullable=False, default=False, comment="是否已完成绑定")
+    bound_at = Column(DateTime, nullable=True, comment="绑定完成时间")
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "open_id": self.open_id,
+            "is_bound": bool(self.is_bound),
+            "bound_at": format_utc_datetime(self.bound_at),
+            "created_at": format_utc_datetime(self.created_at),
+        }
+
+
+class WechatConversation(Base):
+    """微信对话线程追踪"""
+
+    __tablename__ = "wechat_conversations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    open_id = Column(String(128), nullable=False, index=True, comment="微信 OpenID")
+    user_id = Column(Integer, nullable=True, comment="绑定的内部用户ID（可为空）")
+    thread_id = Column(String(64), nullable=False, comment="关联 conversations.thread_id")
+    last_message_at = Column(DateTime, nullable=False, default=utc_now_naive, comment="最后消息时间")
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "open_id": self.open_id,
+            "user_id": self.user_id,
+            "thread_id": self.thread_id,
+            "last_message_at": format_utc_datetime(self.last_message_at),
+            "created_at": format_utc_datetime(self.created_at),
+        }
 
 
 class TaskRecord(Base):
@@ -497,46 +567,3 @@ class TaskRecord(Base):
         data.pop("payload", None)
         data.pop("result", None)
         return data
-class UserCrop(Base):
-    """用户种植作物表"""
-
-    __tablename__ = "user_crops"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id"),
-        nullable=False,
-        index=True
-    )
-
-    crop_id = Column(
-        Integer,
-        nullable=False,
-        index=True
-    )
-
-    latitude = Column(
-        Float,
-        nullable=False
-    )
-
-    longitude = Column(
-        Float,
-        nullable=False
-    )
-
-    created_at = Column(
-        DateTime,
-        default=utc_now_naive
-    )
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "crop_id": self.crop_id,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-        }
