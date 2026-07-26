@@ -91,6 +91,19 @@ const router = createRouter({
       ]
     },
     {
+      path: '/time',
+      name: 'time',
+      component: AppLayout, // 使用通用布局
+      children: [
+        {
+          path: '',
+          name: 'TimeComp',
+          component: () => import('../views/TimeView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       component: () => import('../views/EmptyView.vue'),
