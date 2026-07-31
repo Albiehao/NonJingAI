@@ -171,9 +171,23 @@ cp .env.template .env
 ### 3. 启动开发环境
 
 ```bash
-make start
-# 或
-docker compose up -d
+## 生产环境：
+
+先验证配置：
+docker compose -f docker-compose.prod.yml config
+如果没有报错，构建并启动：
+docker compose -f docker-compose.prod.yml up -d --build
+查看状态：
+docker compose -f docker-compose.prod.yml ps
+
+## 开发环境
+先验证配置：
+docker compose -f config
+如果没有报错，构建并启动：
+docker compose -f up -d --build
+查看状态：
+docker compose -f ps
+
 ```
 
 首次启动会自动构建镜像，请耐心等待。
