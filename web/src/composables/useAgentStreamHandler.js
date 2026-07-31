@@ -64,7 +64,6 @@ const processStreamResponse = async (response, onChunk) => {
 
 export function useAgentStreamHandler({
   getThreadState,
-  processApprovalInStream,
   currentAgentId,
   supportsTodo,
   supportsFiles
@@ -108,10 +107,6 @@ export function useAgentStreamHandler({
           }
         }
         return true
-
-      case 'human_approval_required':
-        // 使用审批 composable 处理审批请求
-        return processApprovalInStream(chunk, threadId, unref(currentAgentId))
 
       case 'agent_state':
         if ((unref(supportsTodo) || unref(supportsFiles)) && chunk.agent_state) {

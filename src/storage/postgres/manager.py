@@ -10,6 +10,7 @@ from sqlalchemy.orm import declarative_base
 
 from server.utils.singleton import SingletonMeta
 from src.storage.postgres.models_business import Base as BusinessBase
+from src.storage.postgres.models_crop import Base as CropBase
 from src.storage.postgres.models_knowledge import Base as KnowledgeBase
 from src.utils import logger
 
@@ -17,7 +18,7 @@ from src.utils import logger
 CombinedBase = declarative_base()
 
 # 继承所有表
-for module in [KnowledgeBase, BusinessBase]:
+for module in [KnowledgeBase, BusinessBase, CropBase]:
     for table_name in dir(module):
         table = getattr(module, table_name)
         if isinstance(table, type) and hasattr(table, "__tablename__"):
@@ -89,6 +90,103 @@ class PostgresManager(metaclass=SingletonMeta):
         self._check_initialized()
         async with self.async_engine.begin() as conn:
             await conn.run_sync(BusinessBase.metadata.create_all)
+            await conn.run_sync(CropBase.metadata.create_all)
+
+        # 业务表 schema 迁移
+        async with self.async_engine.begin() as conn:
+            # 检查 users 表是否还有旧地址列（避免重复迁移报错）
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='users' AND column_name='address'"
+            ))
+            if result.fetchone():
+                await conn.execute(text("""
+                    INSERT INTO user_addresses (user_id, address, latitude, longitude, geohash_10km, geohash_20km, geohash, geo_context)
+                    SELECT id, address, latitude, longitude, geohash_10km, geohash_20km, geohash, geo_context
+                    FROM users
+                    WHERE address IS NOT NULL OR latitude IS NOT NULL OR geo_context IS NOT NULL
+                    ON CONFLICT (user_id) DO NOTHING
+                """))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS geo_context"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS address"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS latitude"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS longitude"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS geohash_10km"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS geohash_20km"))
+                await conn.execute(text("ALTER TABLE IF EXISTS users DROP COLUMN IF EXISTS geohash"))
+
+            # wechat_bindings 表 migration
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='wechat_bindings' AND column_name='binding_token'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS wechat_bindings (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        open_id VARCHAR(128) UNIQUE,
+                        union_id VARCHAR(128),
+                        binding_token VARCHAR(64) NOT NULL UNIQUE,
+                        token_expires_at TIMESTAMP NOT NULL,
+                        is_bound BOOLEAN NOT NULL DEFAULT FALSE,
+                        bound_at TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_wechat_bindings_user_id ON wechat_bindings(user_id)"
+                ))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_wechat_bindings_open_id ON wechat_bindings(open_id)"
+                ))
+
+            # wechat_conversations 表 migration
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='wechat_conversations' AND column_name='thread_id'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS wechat_conversations (
+                        id SERIAL PRIMARY KEY,
+                        open_id VARCHAR(128) NOT NULL,
+                        user_id INTEGER,
+                        thread_id VARCHAR(64) NOT NULL,
+                        last_message_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        updated_at TIMESTAMP DEFAULT NOW()
+                    )
+                """))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_wechat_conv_open_id ON wechat_conversations(open_id)"
+                ))
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS idx_wechat_conv_thread_id ON wechat_conversations(thread_id)"
+                ))
+
+            # 用户表添加邮箱绑定字段
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='users' AND column_name='email'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255) UNIQUE"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN email_verification_code VARCHAR(8)"))
+                await conn.execute(text("ALTER TABLE users ADD COLUMN email_verification_expires_at TIMESTAMP"))
+
+            # webhook_sources 表 migration
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name='webhook_sources' AND column_name='extra_prompt'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE webhook_sources ADD COLUMN extra_prompt TEXT"
+                ))
+
         logger.info("PostgreSQL business tables created/checked")
 
     async def drop_tables(self):
@@ -96,6 +194,7 @@ class PostgresManager(metaclass=SingletonMeta):
         self._check_initialized()
         async with self.async_engine.begin() as conn:
             await conn.run_sync(BusinessBase.metadata.drop_all)
+            await conn.run_sync(CropBase.metadata.drop_all)
             await conn.run_sync(KnowledgeBase.metadata.drop_all)
         logger.info("PostgreSQL tables dropped")
 

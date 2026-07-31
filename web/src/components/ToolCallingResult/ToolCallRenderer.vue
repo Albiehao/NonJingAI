@@ -1,4 +1,7 @@
 <template>
+  <!-- 农资查询 -->
+  <AgrochemicalsTool v-if="isAgrochemicalsResult" :tool-call="toolCall" />
+
   <!-- 知识图谱查询结果 -->
   <KnowledgeGraphTool v-if="isKnowledgeGraphResult" :tool-call="toolCall" ref="graphToolCallRef" />
 
@@ -73,6 +76,7 @@ import EditFileTool from './tools/EditFileTool.vue'
 import MysqlQueryTool from './tools/MysqlQueryTool.vue'
 import MysqlDescribeTableTool from './tools/MysqlDescribeTableTool.vue'
 import MysqlListTablesTool from './tools/MysqlListTablesTool.vue'
+import AgrochemicalsTool from './tools/AgrochemicalsTool.vue'
 
 const props = defineProps({
   toolCall: {
@@ -105,6 +109,11 @@ const parseData = (content) => {
 }
 
 // 识别逻辑
+const isAgrochemicalsResult = computed(() => {
+  const name = toolName.value.toLowerCase()
+  return name.includes('agrochemical') || name.includes('农资')
+})
+
 const isWebSearchResult = computed(() => {
   const name = toolName.value.toLowerCase()
   return name.includes('tavily_search')
@@ -132,11 +141,13 @@ const isKnowledgeBaseResult = computed(() => {
 
 const isKnowledgeGraphResult = computed(() => {
   const name = toolName.value.toLowerCase()
-  const hasGraphKeyword = name.includes('graph') || name.includes('图谱') || name.includes('kg')
+  const hasGraphKeyword = name.includes('graph') || name.includes('图谱') || name.includes('kg') || name.includes('subgraph')
   const data = parseData(props.toolCall.tool_call_result?.content)
   const hasBasicStructure = data && typeof data === 'object'
   const hasTriples = hasBasicStructure && 'triples' in data
+  const hasGraphFormat = hasBasicStructure && Array.isArray(data.nodes) && Array.isArray(data.edges)
   return (
+    (hasGraphFormat && data.nodes.length > 0) ||
     (hasTriples && Array.isArray(data.triples) && data.triples.length > 0) ||
     (hasTriples && hasGraphKeyword)
   )

@@ -9,13 +9,28 @@ export const useUserStore = defineStore('user', () => {
   const username = ref('')
   const userIdLogin = ref('')
   const phoneNumber = ref('')
+  const email = ref('')
   const avatar = ref('')
   const userRole = ref('')
+  const address = ref('')
+  const latitude = ref(null)
+  const longitude = ref(null)
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => userRole.value === 'admin' || userRole.value === 'superadmin')
   const isSuperAdmin = computed(() => userRole.value === 'superadmin')
+
+  // 头像 URL 统一转为相对路径（兼容数据库中已存的绝对 URL）
+  function normalizeAvatarUrl(url) {
+    if (!url) return ''
+    try {
+      const parsed = new URL(url)
+      return parsed.pathname
+    } catch {
+      return url
+    }
+  }
 
   // 动作
   async function login(credentials) {
@@ -52,7 +67,8 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userIdLogin.value = data.user_id_login
       phoneNumber.value = data.phone_number || ''
-      avatar.value = data.avatar || ''
+      email.value = data.email || ''
+      avatar.value = normalizeAvatarUrl(data.avatar)
       userRole.value = data.role
 
       // 只保存 token 到本地存储
@@ -72,8 +88,12 @@ export const useUserStore = defineStore('user', () => {
     username.value = ''
     userIdLogin.value = ''
     phoneNumber.value = ''
+    email.value = ''
     avatar.value = ''
     userRole.value = ''
+    address.value = ''
+    latitude.value = null
+    longitude.value = null
 
     // 清除 agentStore 状态，确保重新登录时能正确加载数据
     const agentStore = useAgentStore()
@@ -106,7 +126,8 @@ export const useUserStore = defineStore('user', () => {
       username.value = data.username
       userIdLogin.value = data.user_id_login
       phoneNumber.value = data.phone_number || ''
-      avatar.value = data.avatar || ''
+      email.value = data.email || ''
+      avatar.value = normalizeAvatarUrl(data.avatar)
       userRole.value = data.role
 
       // 只保存 token 到本地存储
@@ -270,7 +291,7 @@ export const useUserStore = defineStore('user', () => {
       const data = await response.json()
 
       // 更新本地头像状态
-      avatar.value = data.avatar_url
+      avatar.value = normalizeAvatarUrl(data.avatar_url)
 
       return data
     } catch (error) {
@@ -299,8 +320,12 @@ export const useUserStore = defineStore('user', () => {
       username.value = userData.username
       userIdLogin.value = userData.user_id
       phoneNumber.value = userData.phone_number || ''
-      avatar.value = userData.avatar || ''
+      email.value = userData.email || ''
+      avatar.value = normalizeAvatarUrl(userData.avatar)
       userRole.value = userData.role
+      address.value = userData.address || ''
+      latitude.value = userData.latitude || null
+      longitude.value = userData.longitude || null
 
       return userData
     } catch (error) {
@@ -350,8 +375,12 @@ export const useUserStore = defineStore('user', () => {
     username,
     userIdLogin,
     phoneNumber,
+    email,
     avatar,
     userRole,
+    address,
+    latitude,
+    longitude,
 
     // 计算属性
     isLoggedIn,

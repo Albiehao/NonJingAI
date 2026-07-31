@@ -3,8 +3,8 @@ import traceback
 import uuid
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.storage.postgres.models_business import User
@@ -61,6 +61,11 @@ class AgentConfigUpdate(BaseModel):
     examples: list[str] | None = None
     config_json: dict | None = None
 
+class ChatRequest(BaseModel):
+    query: str
+    config:dict = {}
+    meta:dict = {}
+    image_url: str | None = None
 
 chat = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -151,6 +156,7 @@ async def get_agent(current_user: User = Depends(get_required_user)):
             "capabilities": agent_info.get("capabilities", []),  # 智能体能力列表
         }
         for agent_info in agents_info
+        if agent_info["id"] != "WebhookAgent"  # 推送智能体仅后端使用，不展示给用户
     ]
 
     return {"agents": agents}
@@ -338,19 +344,21 @@ async def delete_agent_config_profile(
 @chat.post("/agent/{agent_id}")
 async def chat_agent(
     agent_id: str,
-    query: str = Body(...),
-    config: dict = Body({}),
-    meta: dict = Body({}),
-    image_content: str | None = Body(None),
+    request: ChatRequest,
     current_user: User = Depends(get_required_user),
     db: AsyncSession = Depends(get_db),
 ):
+    query = request.query
+    config = request.config
+    meta = request.meta
+    image_url = request.image_url
+
     """使用特定智能体进行对话（需要登录）"""
     logger.info(f"agent_id: {agent_id}, query: {query}, config: {config}, meta: {meta}")
-    logger.info(f"image_content present: {image_content is not None}")
-    if image_content:
-        logger.info(f"image_content length: {len(image_content)}")
-        logger.info(f"image_content preview: {image_content[:50]}...")
+    logger.info(f"image_url present: {image_url is not None}")
+    if image_url:
+        logger.info(f"image_url length: {len(image_url)}")
+        logger.info(f"image_url preview: {image_url[:50]}...")
 
     # 确保 request_id 存在
     if "request_id" not in meta or not meta.get("request_id"):
@@ -363,7 +371,7 @@ async def chat_agent(
             "server_model_name": config.get("model", agent_id),
             "thread_id": config.get("thread_id"),
             "user_id": current_user.id,
-            "has_image": bool(image_content),
+            "has_image": bool(image_url),
         }
     )
     return StreamingResponse(
@@ -372,7 +380,7 @@ async def chat_agent(
             query=query,
             config=config,
             meta=meta,
-            image_content=image_content,
+            image_content=image_url,
             current_user=current_user,
             db=db,
         ),
@@ -393,12 +401,38 @@ async def get_chat_models(model_provider: str, current_user: User = Depends(get_
     return {"models": models}
 
 
+# ... existing code ...
 @chat.post("/models/update")
 async def update_chat_models(model_provider: str, model_names: list[str], current_user=Depends(get_admin_user)):
     """更新指定模型提供商的模型列表 (仅管理员)"""
-    conf.model_names[model_provider].models = model_names
+    # 创建 ChatModelInfo 对象字典，而不是直接使用字符串列表
+    from src.config.static.models import ChatModelInfo
+
+    # 将字符串列表转换为 ChatModelInfo 对象字典
+    model_info_dict = {}
+    for model_name in model_names:
+        # 从现有模型信息中获取详细信息，如果不存在则创建基本模型信息
+        existing_provider = conf.model_names.get(model_provider)
+        if existing_provider and existing_provider.models.get(model_name):
+            # 如果原 provider 中已有此模型，保留其详细信息
+            model_info_dict[model_name] = existing_provider.models[model_name]
+        else:
+            # 否则创建一个基本的模型信息
+            model_info_dict[model_name] = ChatModelInfo(
+                model_id=model_name,
+                name=model_name.split('/')[-1] if '/' in model_name else model_name,
+                description="自定义模型",
+                vision_support=False,
+                supports_thinking=False,
+                default_thinking_effort="medium",
+                max_tokens=4096,
+                context_window=128000
+            )
+
+    conf.model_names[model_provider].models = model_info_dict
     conf._save_models_to_file(model_provider)
-    return {"models": conf.model_names[model_provider].models}
+    return {"models": list(conf.model_names[model_provider].models.keys())}
+# ... existing code ...
 
 
 @chat.post("/agent/{agent_id}/resume")
@@ -549,6 +583,39 @@ async def get_agent_config(agent_id: str, current_user: User = Depends(get_requi
     except Exception as e:
         logger.error(f"加载智能体配置出错: {e}, {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"加载智能体配置出错: {str(e)}")
+
+
+class PdfReportRequest(BaseModel):
+    """PDF报告生成请求"""
+    markdown: str = Field(description="报告 Markdown 内容")
+    filename: str | None = Field(default=None, description="下载文件名（不含扩展名）")
+
+
+@chat.post("/agent/{agent_id}/report-pdf")
+async def generate_agent_report_pdf(
+    agent_id: str,
+    req: PdfReportRequest,
+    current_user: User = Depends(get_required_user),
+):
+    """将智能体生成的报告 Markdown 转为美化 PDF（仅限 crop_agent）"""
+    try:
+        from src.agents.crop_agent.pdf_service import generate_pdf
+
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            pdf_path = generate_pdf(req.markdown, tmp.name)
+            if not pdf_path:
+                raise HTTPException(status_code=500, detail="PDF 生成失败")
+
+        filename = req.filename or f"crop_report_{uuid.uuid4().hex[:8]}"
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=f"{filename}.pdf",
+        )
+    except Exception as e:
+        logger.error(f"生成PDF报告出错: {e}, {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"生成PDF报告出错: {str(e)}")
 
 
 # ==================== 线程管理 API ====================

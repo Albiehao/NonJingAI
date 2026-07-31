@@ -20,9 +20,6 @@ from src.agents.common.state import BaseState
 # Tools - 工具注册和获取
 from src.agents.common.tool_registry import gen_tool_info, get_buildin_tools, get_tools_from_context
 
-# MCP - Agent 层统一入口（自动过滤 disabled_tools）
-from src.services.mcp_service import get_enabled_mcp_tools
-
 __all__ = [
     # Base classes
     "BaseAgent",
@@ -34,6 +31,4 @@ __all__ = [
     "get_buildin_tools",
     "gen_tool_info",
     "get_tools_from_context",
-    # Core MCP
-    "get_enabled_mcp_tools",
 ]

@@ -14,7 +14,10 @@ from src.agents import agent_manager
 from src.plugins.guard import content_guard
 from src.repositories.agent_config_repository import AgentConfigRepository
 from src.repositories.conversation_repository import ConversationRepository
+from sqlalchemy import select
+
 from src.storage.postgres.manager import pg_manager
+from src.storage.postgres.models_crop import Crop, UserCrop
 from src.utils.logging_config import logger
 
 
@@ -48,6 +51,7 @@ def _build_state_files(attachments: list[dict]) -> dict:
             "content": content_lines,
             "created_at": attachment.get("uploaded_at", now),
             "modified_at": attachment.get("uploaded_at", now),
+            "minio_url": attachment.get("minio_url"),
         }
 
     return files
@@ -267,7 +271,7 @@ async def stream_agent_chat(
         human_message = HumanMessage(
             content=[
                 {"type": "text", "text": query},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_content}"}},
+                {"type": "image_url", "image_url": {"url":image_content}},
             ]
         )
         message_type = "multimodal_image"
@@ -278,7 +282,7 @@ async def stream_agent_chat(
     init_msg = {"role": "user", "content": query, "type": "human"}
     if image_content:
         init_msg["message_type"] = "multimodal_image"
-        init_msg["image_content"] = image_content
+        init_msg["image_url"] = image_content
     else:
         init_msg["message_type"] = "text"
 
@@ -336,6 +340,45 @@ async def stream_agent_chat(
         "agent_config_id": agent_config_id,
         "agent_config": agent_config,
     }
+
+    # 注入用户个人信息到系统提示词
+    try:
+        user_profile_parts = []
+        user_profile_parts.append(f"用户昵称：{current_user.username or '未设置'}")
+
+        if current_user.user_address:
+            ua = current_user.user_address
+            if ua.address:
+                user_profile_parts.append(f"用户地址：{ua.address}")
+            if ua.latitude is not None and ua.longitude is not None:
+                user_profile_parts.append(f"用户位置：{ua.latitude}, {ua.longitude}")
+
+        crop_result = await db.execute(
+            select(UserCrop).where(
+                UserCrop.user_id == current_user.id,
+                UserCrop.deleted_at.is_(None),
+            )
+        )
+        user_crops = crop_result.scalars().all()
+        if user_crops:
+            crop_ids = [uc.crop_id for uc in user_crops]
+            crop_names = await db.execute(select(Crop).where(Crop.id.in_(crop_ids)))
+            crop_map = {c.id: c.name for c in crop_names.scalars().all()}
+            crop_list = "、".join(
+                f"{crop_map.get(uc.crop_id, '未知')}({uc.nickname or '未命名'})" for uc in user_crops
+            )
+            user_profile_parts.append(f"种植农作物：{crop_list}")
+
+        if user_profile_parts:
+            user_profile_str = "\n".join(user_profile_parts)
+            agent_config = dict(agent_config)  # 复制避免修改原配置
+            orig_prompt = agent_config.get("system_prompt", "") or ""
+            agent_config["system_prompt"] = f"{user_profile_str}\n\n{orig_prompt}" if orig_prompt else user_profile_str
+            input_context["agent_config"] = agent_config  # 更新回 input_context
+            logger.info(f"用户信息注入系统提示词: {user_profile_str[:80]}...")
+    except Exception as e:
+        logger.warning(f"注入用户个人信息失败: {e}")
+        # 不影响主流程
 
     try:
         conv_repo = ConversationRepository(db)

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "t-001",
+    "avatar": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%232b3343'/><rect x='10' y='10' width='76' height='76' fill='%23ffd46a'/><rect x='22' y='28' width='12' height='12' fill='%232b1d12'/><rect x='62' y='28' width='12' height='12' fill='%232b1d12'/><rect x='30' y='56' width='36' height='10' fill='%232b1d12'/></svg>",
+    "name": "张师傅 · 农资采购",
+    "text": "数据更新很及时，按品类+地区筛选后采购沟通成本明显下降。"
+  },
+  {
+    "id": "t-002",
+    "avatar": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%232b3343'/><rect x='10' y='10' width='76' height='76' fill='%233f5374'/><rect x='24' y='30' width='48' height='10' fill='%23ffe5a8'/><rect x='24' y='50' width='30' height='8' fill='%23ffe5a8'/></svg>",
+    "name": "李同学 · 农学专业",
+    "text": "评价卡片信息清晰，平台结构一目了然，查资料比以前快太多。"
+  },
+  {
+    "id": "t-003",
+    "avatar": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%232b3343'/><rect x='10' y='10' width='76' height='76' fill='%238a632f'/><rect x='24' y='30' width='18' height='18' fill='%23fff2d2'/><rect x='50' y='30' width='22' height='8' fill='%23fff2d2'/><rect x='50' y='44' width='18' height='8' fill='%23fff2d2'/></svg>",
+    "name": "王经理 · 渠道合作",
+    "text": "渠道信息更透明，做对比更方便。希望后续能加更多供应商标签维度。"
+  },
+  {
+    "id": "t-004",
+    "avatar": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><rect width='96' height='96' fill='%232b3343'/><rect x='10' y='10' width='76' height='76' fill='%235a8a52'/><rect x='22' y='28' width='52' height='12' fill='%23ffe5a8'/><rect x='22' y='48' width='36' height='10' fill='%23ffe5a8'/></svg>",
+    "name": "赵阿姨 · 种植户",
+    "text": "页面像素风很有感觉，重点信息突出，手机上也能很快找到需要的内容。"
+  }
+]

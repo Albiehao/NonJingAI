@@ -27,6 +27,32 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      path: '/blog',
+      name: 'blog',
+      component: BlankLayout,
+      meta: { requiresAuth: false },
+      children: [
+        {
+          path: '',
+          name: 'BlogList',
+          component: () => import('../views/BlogView.vue'),
+          meta: { requiresAuth: false }
+        },
+        {
+          path: ':slug',
+          name: 'BlogDetail',
+          component: () => import('../views/BlogDetailView.vue'),
+          meta: { requiresAuth: false }
+        }
+      ]
+    },
+    {
       path: '/agent',
       name: 'AgentMain',
       component: AppLayout,
@@ -42,8 +68,28 @@ const router = createRouter({
     {
       path: '/agent/:agent_id',
       name: 'AgentSinglePage',
-      component: () => import('../views/AgentSingleView.vue'),
-      meta: { requiresAuth: true }
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'AgentSingleComp',
+          component: () => import('../views/AgentSingleView.vue'),
+          meta: { requiresAuth: true }
+        }
+      ]
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'ProfileComp',
+          component: () => import('../views/ProfileView.vue'),
+          meta: { keepAlive: false, requiresAuth: true }
+        }
+      ]
     },
     {
       path: '/graph',
@@ -54,7 +100,7 @@ const router = createRouter({
           path: '',
           name: 'GraphComp',
           component: () => import('../views/GraphView.vue'),
-          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
+          meta: { keepAlive: false, requiresAuth: true }
         }
       ]
     },
@@ -91,15 +137,50 @@ const router = createRouter({
       ]
     },
     {
-      path: '/time',
-      name: 'time',
-      component: AppLayout, // 使用通用布局
+      path: '/settings',
+      component: AppLayout,
       children: [
         {
           path: '',
-          name: 'TimeComp',
-          component: () => import('../views/TimeView.vue'),
+          name: 'Settings',
+          component: () => import('../views/SettingsView.vue'),
+          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
+      path: '/crop-admin',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'CropAdmin',
+          component: () => import('../views/CropAdminView.vue'),
           meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
+      path: '/crop-dict',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'CropDict',
+          component: () => import('../views/CropDictView.vue'),
+          meta: { keepAlive: true, requiresAuth: true, requiresAdmin: true }
+        }
+      ]
+    },
+    {
+      path: '/webhook',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'WebhookAdmin',
+          component: () => import('../views/WebhookAdminView.vue'),
+          meta: { keepAlive: false, requiresAuth: true, requiresAdmin: true }
         }
       ]
     },

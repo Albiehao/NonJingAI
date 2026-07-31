@@ -3,12 +3,9 @@ from deepagents.middleware.filesystem import FilesystemMiddleware
 from langchain.agents import create_agent
 from langchain.agents.middleware import ModelRetryMiddleware
 
+from src.agents.common.middlewares.image_filter_middleware import ImageFilterMiddleware
 from src.agents.common import BaseAgent, load_chat_model
-from src.agents.common.middlewares import (
-    RuntimeConfigMiddleware,
-    save_attachments_to_fs,
-)
-from src.services.mcp_service import get_tools_from_all_servers
+from src.agents.common.middlewares import RuntimeConfigMiddleware, save_attachments_to_fs
 
 
 def _create_fs_backend(rt):
@@ -27,19 +24,16 @@ class ChatbotAgent(BaseAgent):
     async def get_graph(self, **kwargs):
         """构建图"""
         context = self.context_schema()
-        all_mcp_tools = (
-            await get_tools_from_all_servers()
-        )  # 因为异步加载，无法放在 RuntimeConfigMiddleware 的 __init__ 中
-
         # 使用 create_agent 创建智能体
         # 注意：tools 参数由 RuntimeConfigMiddleware 在 wrap_model_call 中动态设置
         graph = create_agent(
             model=load_chat_model(context.model),
             system_prompt=context.system_prompt,
             middleware=[
+                ImageFilterMiddleware(enabled=True),# 图片过滤器
                 save_attachments_to_fs,  # 附件注入提示词
                 FilesystemMiddleware(backend=_create_fs_backend),  # 文件系统后端
-                RuntimeConfigMiddleware(extra_tools=all_mcp_tools),  # 运行时配置应用（模型/工具/知识库/MCP/提示词）
+                RuntimeConfigMiddleware(),  # 运行时配置应用（模型/工具/知识库/提示词）
                 ModelRetryMiddleware(),  # 模型重试中间件
             ],
             checkpointer=await self._get_checkpointer(),

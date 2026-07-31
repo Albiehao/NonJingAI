@@ -51,18 +51,22 @@ class MinIOClient:
         self._client = None
 
         # 设置公开访问端点
-        if os.getenv("RUNNING_IN_DOCKER"):
+        proxy_url = os.getenv("STORAGE_PROXY_URL")
+        if proxy_url:
+            self.proxy_endpoint = proxy_url
+        elif os.getenv("RUNNING_IN_DOCKER"):
             host_ip = (os.getenv("HOST_IP") or "").strip()
             if not host_ip:
                 host_ip = "localhost"
             if "://" in host_ip:
                 host_ip = host_ip.split("://")[-1]
             host_ip = host_ip.rstrip("/")
-            self.public_endpoint = f"{host_ip}:9000"
-            logger.debug(f"Docker MinIOClient public_endpoint: {self.public_endpoint}")
+            self.proxy_endpoint = f"{host_ip}:5050"
         else:
-            self.public_endpoint = "localhost:9000"
-            logger.debug(f"Default_client: {self.public_endpoint}")
+            self.proxy_endpoint = "localhost:5050"
+
+        self.public_endpoint = "localhost:9000"
+        logger.debug(f"MinIOClient proxy_endpoint: {self.proxy_endpoint}")
 
     @property
     def client(self) -> Minio:
@@ -115,7 +119,7 @@ class MinIOClient:
             )
 
             assert result is not None
-            url = f"http://{self.public_endpoint}/{bucket_name}/{object_name}"
+            url = f"http://{self.proxy_endpoint}/api/storage/{bucket_name}/{object_name}"
 
             return UploadResult(url, bucket_name, object_name)
 
@@ -324,8 +328,12 @@ class MinIOClient:
         if allowed_extensions and not any(url.endswith(ext) for ext in allowed_extensions):
             raise StorageError(f"文件扩展名不符合要求，允许: {', '.join(allowed_extensions)}")
 
-        # 解析 bucket 和 object name
-        path_parts = parsed.path.lstrip("/").split("/", 1)
+        # 解析 bucket 和 object name（支持新旧两种 URL 格式）
+        cleaned_path = parsed.path.lstrip("/")
+        if cleaned_path.startswith("api/storage/"):
+            cleaned_path = cleaned_path[len("api/storage/"):]
+
+        path_parts = cleaned_path.split("/", 1)
         if len(path_parts) != 2:
             raise StorageError("无法解析 MinIO URL")
 

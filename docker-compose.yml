@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: docker/api.Dockerfile
     image: yuxi-api:0.5.dev
-    container_name: api-dev
+    container_name: qianxun-api-dev
     working_dir: /app
     volumes:
       - ./server:/app/server
@@ -35,13 +35,27 @@ services:
       - MINERU_VL_SERVER=${MINERU_VL_SERVER:-http://mineru-vllm-server:30000}
       - MINERU_API_URI=${MINERU_API_URI:-http://mineru-api:30001}
       - PADDLEX_URI=${PADDLEX_URI:-http://paddlex:8080}
-      - MINIO_URI=${MINIO_URI:-http://milvus-minio:9000}
+      - MINIO_URI=${MINIO_URI:-http://minio:9000}
       - MODEL_DIR_IN_DOCKER=/models
       - RUNNING_IN_DOCKER=true
-      - NO_PROXY=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd-dev,etcd,minio,mineru,paddlex,api.siliconflow.cn
-      - no_proxy=localhost,127.0.0.1,milvus,graph,milvus-minio,milvus-etcd-dev,etcd,minio,mineru,paddlex,api.siliconflow.cn
+      - AMAP_KEY=${AMAP_KEY:-}
+      - CAIYUN_TOKEN=${CAIYUN_TOKEN:-}
+      - WECHAT_APP_ID=${WECHAT_APP_ID:-}
+      - WECHAT_APP_SECRET=${WECHAT_APP_SECRET:-}
+      - WECHAT_TOKEN=${WECHAT_TOKEN:-}
+      - WECHAT_ENCODING_AES_KEY=${WECHAT_ENCODING_AES_KEY:-}
+      - WECHAT_PROXY_URL=${WECHAT_PROXY_URL:-}
+      - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-千寻农业助手}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - CROP_BACKEND_URL=${QIANXUN_SERVER_URL:-http://qianxun-server:8080}
+      - NO_PROXY=localhost,127.0.0.1,milvus,graph,minio,etcd,mineru,paddlex,api.siliconflow.cn,qianxun-server,postgres
+      - no_proxy=localhost,127.0.0.1,milvus,graph,minio,etcd,mineru,paddlex,api.siliconflow.cn,qianxun-server,postgres
     # endregion api_envs
-    command: uv run --no-dev uvicorn server.main:app --host 0.0.0.0 --port 5050 --reload
+    command: uvicorn server.main:app --host 0.0.0.0 --port 5050 --reload
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5050/api/system/health || exit 1"]
@@ -63,7 +77,7 @@ services:
       dockerfile: docker/web.Dockerfile
       target: development
     image: yuxi-web:0.5.dev
-    container_name: web-dev
+    container_name: qianxun-web-dev
     volumes:
       - ./web/src:/app/src
       - ./web/public:/app/public
@@ -78,13 +92,15 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_URL=http://api:5050
+      - VITE_AMAP_KEY=${AMAP_KEY:-}
+      - VITE_AMAP_SECURITY_JS_CODE=${AMAP_SECURITY_JS_CODE:-}
     command: pnpm run server
     restart: unless-stopped
 
   # region neo4j
   graph:
     image: neo4j:5.26
-    container_name: graph
+    container_name: qianxun-graph
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -108,7 +124,7 @@ services:
   # endregion neo4j
 
   etcd:
-    container_name: milvus-etcd-dev
+    container_name: qianxun-milvus-etcd-dev
     image: quay.io/coreos/etcd:v3.5.5
     environment:
       - ETCD_AUTO_COMPACTION_MODE=revision
@@ -129,7 +145,7 @@ services:
     restart: unless-stopped
 
   minio:
-    container_name: milvus-minio
+    container_name: qianxun-milvus-minio
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     environment:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
@@ -153,7 +169,7 @@ services:
 
   milvus:
     image: milvusdb/milvus:v2.5.6
-    container_name: milvus
+    container_name: qianxun-milvus
     command: ["milvus", "run", "standalone"]
     security_opt:
       - seccomp:unconfined
@@ -182,7 +198,7 @@ services:
 
   postgres:
     image: postgres:16
-    container_name: postgres
+    container_name: qianxun-postgres
     ports:
       - "5432:5432"
     environment:
@@ -207,7 +223,7 @@ services:
       context: .
       dockerfile: docker/mineru.Dockerfile
     image: mineru-vllm:latest
-    container_name: mineru-vllm-server
+    container_name: qianxun-mineru-vllm-server
     profiles:
       - all
     env_file:
@@ -245,7 +261,7 @@ services:
       context: .
       dockerfile: docker/mineru.Dockerfile
     image: mineru-vllm:latest
-    container_name: mineru-api
+    container_name: qianxun-mineru-api
     profiles:
       - all
     env_file:
@@ -271,7 +287,7 @@ services:
       context: .
       dockerfile: docker/paddlex.Dockerfile
     image: paddlex:latest
-    container_name: paddlex-ocr
+    container_name: qianxun-paddlex-ocr
     profiles:
       - all
     volumes:
@@ -295,6 +311,78 @@ services:
       - app-network
     restart: unless-stopped
 
+  yoloapi:
+    build:
+        context: .
+        dockerfile: docker/yoloapi.Dockerfile
+    image: yolo-api:0.1.0
+    container_name: qianxun-yolo-api
+    ports:
+      - "8001:8000"
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - RUNNING_IN_DOCKER=true
+      - YOLO_MODEL_PATH=yolo.pt
+      - MINIO_URI=http://minio:9000
+      - MINIO_PUBLIC_URI=http://${HOST_IP}:5050/api/storage
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Qianxun 农资服务后端
+  qianxun-server:
+    build:
+      context: ./crop-management-system
+      dockerfile: ../docker/qianxun-server.Dockerfile
+    image: qianxun-server:0.0.1.dev
+    container_name: qianxun-server-01
+    working_dir: /build
+    volumes:
+      - ./crop-management-system/src:/build/src
+      - ./crop-management-system/pom.xml:/build/pom.xml
+      - ./crop-management-system/uploads:/build/uploads
+      - maven-cache:/root/.m2  # Maven 依赖缓存
+    ports:
+      - "8082:8080"
+    networks:
+      - app-network
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/yuxi_know
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - TZ=Asia/Shanghai
+      - AI_OPENAI_BASE_URL=${AI_OPENAI_BASE_URL:-https://api.siliconflow.cn/v1}
+      - AI_OPENAI_API_KEY=${SILICONFLOW_API_KEY:-}
+      - AI_OPENAI_MODEL_NAME=${AI_OPENAI_MODEL_NAME:-Qwen/Qwen2.5-7B-Instruct}
+      - JAVA_TOOL_OPTIONS=-Dminio.public-endpoint=/api/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+
+volumes:
+  maven-cache:
+
 networks:
   app-network:
     driver: bridge
+    external: false

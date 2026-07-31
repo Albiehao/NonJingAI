@@ -1,9 +1,9 @@
 <template>
   <div
-    v-if="message.message_type === 'multimodal_image' && message.image_content"
+    v-if="message.message_type === 'multimodal_image' && message.image_url"
     class="message-image"
   >
-    <img :src="`data:image/jpeg;base64,${message.image_content}`" alt="用户上传的图片" />
+    <img :src="message.image_url" alt="用户上传的图片" />
   </div>
   <div class="message-box" :class="[message.type, customClasses]">
     <!-- 用户消息 -->
@@ -89,6 +89,7 @@
       >
         <RefsComponent
           :message="message"
+          :agent-id="agentId"
           :show-refs="showRefs"
           :is-latest-message="isLatestMessage"
           @retry="emit('retry')"
@@ -145,6 +146,11 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  // 当前智能体 ID
+  agentId: {
+    type: String,
+    default: ''
+  },
   // 是否显示调试信息 (已废弃，使用 infoStore.debugMode)
   debugMode: {
     type: Boolean,
@@ -160,29 +166,34 @@ const emit = defineEmits(['retry', 'retryStoppedMessage', 'openRefs'])
 const isCopied = ref(false)
 
 const copyToClipboard = async (text) => {
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+  // 先尝试 Clipboard API
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
       await navigator.clipboard.writeText(text)
-    } else {
-      // 降级处理：使用传统的 execCommand 方法
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      textArea.style.position = 'fixed'
-      textArea.style.left = '-999999px'
-      textArea.style.top = '-999999px'
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      const successful = document.execCommand('copy')
-      document.body.removeChild(textArea)
-      if (!successful) throw new Error('execCommand failed')
+      isCopied.value = true
+      setTimeout(() => { isCopied.value = false }, 2000)
+      return
+    } catch {
+      // Clipboard API 失败（如非 HTTPS 环境），降级到 execCommand
     }
+  }
+  // 降级处理：使用传统的 execCommand 方法
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+  textArea.style.position = 'fixed'
+  textArea.style.left = '-999999px'
+  textArea.style.top = '-999999px'
+  document.body.appendChild(textArea)
+  textArea.focus()
+  textArea.select()
+  try {
+    document.execCommand('copy')
     isCopied.value = true
-    setTimeout(() => {
-      isCopied.value = false
-    }, 2000)
+    setTimeout(() => { isCopied.value = false }, 2000)
   } catch (err) {
     console.error('Failed to copy: ', err)
+  } finally {
+    document.body.removeChild(textArea)
   }
 }
 
@@ -296,12 +307,12 @@ const parsedData = computed(() => {
 
   &.human,
   &.sent {
-    max-width: 95%;
+    max-width: 88%;
     color: var(--gray-1000);
-    background-color: var(--main-50);
+    background: transparent;
     align-self: flex-end;
-    border-radius: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.65rem 1rem;
+    margin-left: auto;
   }
 
   &.assistant,
@@ -311,9 +322,8 @@ const parsedData = computed(() => {
     width: 100%;
     text-align: left;
     margin: 0;
-    padding: 0px;
-    background-color: transparent;
-    border-radius: 0;
+    padding: 0.85rem 1rem;
+    background: transparent;
   }
 
   .message-text {
@@ -559,36 +569,78 @@ const parsedData = computed(() => {
   margin: 8px 0;
 }
 
+:deep(.md-editor) {
+  background: transparent;
+}
+
 :deep(.message-md .md-editor-preview-wrapper) {
   max-width: 100%;
   padding: 0;
+  background: transparent;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Noto Sans SC', 'PingFang SC', 'Noto Sans SC',
     'Microsoft YaHei', 'Hiragino Sans GB', 'Source Han Sans CN', 'Courier New', monospace;
 
   #preview-only-preview {
-    font-size: 1rem;
+    font-size: 1.05rem;
     line-height: 1.75;
     color: var(--gray-1000);
+    font-family: 'STSong', 'SimSun', 'Noto Serif SC', serif;
+    font-weight: 400;
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 530;
+      line-height: 1.35;
+      letter-spacing: 0.05em;
+      margin-top: 1.6em;
+      margin-bottom: 0.5em;
+      color: var(--gray-1000);
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 500;
+      line-height: 1.4;
+      letter-spacing: 0.04em;
+      margin-top: 1.4em;
+      margin-bottom: 0.4em;
+      color: var(--gray-1000);
+    }
+
+    h3 {
+      font-size: 1.45rem;
+      font-weight: 470;
+      line-height: 1.45;
+      letter-spacing: 0.03em;
+      margin-top: 1.3em;
+      margin-bottom: 0.3em;
+      color: var(--gray-1000);
+    }
+
+    h4 {
+      font-size: 1.15rem;
+      font-weight: 450;
+      line-height: 1.5;
+      margin-top: 1.2em;
+      margin-bottom: 0.3em;
+    }
+
+    h5, h6 {
+      font-size: 1rem;
+      font-weight: 430;
+    }
   }
 
-  h1,
-  h2 {
-    font-size: 1.2rem;
+  table {
+    background: var(--gray-25);
+    border-collapse: collapse;
   }
 
-  h3,
-  h4 {
-    font-size: 1.1rem;
-  }
-
-  h5,
-  h6 {
-    font-size: 1rem;
-  }
-
-  strong {
-    font-weight: 500;
+  th, td {
+    background: var(--gray-25);
+    border: 1px solid var(--gray-200);
+    padding: 6px 10px;
   }
 
   li > p,
@@ -759,14 +811,20 @@ const parsedData = computed(() => {
 :deep(.chat-box.font-larger #preview-only-preview) {
   font-size: 16px;
 
-  h1,
-  h2 {
-    font-size: 1.3rem;
+  h1 {
+    font-size: 2rem;
   }
 
-  h3,
+  h2 {
+    font-size: 1.7rem;
+  }
+
+  h3 {
+    font-size: 1.4rem;
+  }
+
   h4 {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
   }
 
   h5,

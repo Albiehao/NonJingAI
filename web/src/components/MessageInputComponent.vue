@@ -8,8 +8,9 @@
       <slot name="top"></slot>
     </div>
 
-    <div class="expand-options" v-if="hasOptionsLeft">
+    <div class="expand-options" v-if="hasOptionsLeft || hasActionsLeft">
       <a-popover
+        v-if="hasOptionsLeft"
         v-model:open="optionsExpanded"
         placement="bottomLeft"
         trigger="click"
@@ -69,19 +70,6 @@
             v-for="(item, index) in mentionItems.knowledgeBases"
             :key="'kb-' + item.value"
             :class="['mention-item', { active: isItemSelected('knowledge', index) }]"
-            @click="insertMention(item)"
-          >
-            {{ item.label }}
-          </div>
-        </div>
-
-        <!-- MCP 列表 -->
-        <div v-if="mentionItems.mcps.length > 0" class="mention-group">
-          <div class="mention-group-title">MCP</div>
-          <div
-            v-for="(item, index) in mentionItems.mcps"
-            :key="'mcp-' + item.value"
-            :class="['mention-item', { active: isItemSelected('mcp', index) }]"
             @click="insertMention(item)"
           >
             {{ item.label }}
@@ -622,15 +610,23 @@ defineExpose({
   display: grid;
   width: 100%;
   margin: 0 auto;
-  border: 1px solid var(--gray-150);
-  border-radius: 0.8rem;
-  box-shadow: 0 2px 8px var(--shadow-1);
-  transition: all 0.3s ease;
+  background: var(--gray-0);
+  border: 1px solid var(--gray-200);
+  border-radius: 0.9rem;
+  box-shadow: 0 2px 12px var(--shadow-1);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   gap: 0px;
   position: relative;
 
+  &:focus-within {
+    border-color: var(--main-300);
+    box-shadow: 0 4px 20px var(--shadow-2);
+  }
+
   /* Default: Multi-line layout with top/bottom slots */
-  padding: 0.8rem 0.75rem 0.6rem 0.75rem;
+  padding: 0.85rem 0.9rem 0.65rem 0.9rem;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto auto;
   grid-template-areas:
@@ -671,7 +667,7 @@ defineExpose({
   // }
 
   &.single-line {
-    padding: 0.75rem 0.75rem;
+    padding: 0.8rem 0.9rem;
     grid-template-columns: auto 1fr auto;
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
@@ -724,14 +720,14 @@ defineExpose({
   background-color: transparent;
   border: none;
   margin: 0;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
   color: var(--gray-1000);
   font-size: 15px;
   outline: none;
   resize: none;
-  line-height: 1.5;
+  line-height: 1.6;
   font-family: inherit;
-  min-height: 44px; /* Default min-height for multi-line */
+  min-height: 48px; /* Default min-height for multi-line */
   max-height: 200px;
 
   &:focus {

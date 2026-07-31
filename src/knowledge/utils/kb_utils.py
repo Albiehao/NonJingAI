@@ -437,6 +437,9 @@ def parse_minio_url(file_path: str) -> tuple[str, str]:
         else:
             # 对于 http/https 协议，bucket名称在path的第一部分
             object_name = parsed_url.path.lstrip("/")
+            # 兼容代理URL格式: /api/storage/{bucket}/{object}
+            if object_name.startswith("api/storage/"):
+                object_name = object_name[len("api/storage/"):]
             path_parts = object_name.split("/", 1)
             if len(path_parts) > 1:
                 bucket_name = path_parts[0]

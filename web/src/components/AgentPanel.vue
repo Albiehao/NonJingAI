@@ -83,6 +83,14 @@
                 </div>
                 <div v-if="data.isLeaf" class="node-actions" @click.stop>
                   <button
+                    v-if="data.key === 'final_report.md' || data.key.endsWith('/final_report.md')"
+                    class="tree-action-btn tree-pdf-btn"
+                    @click.stop="exportPdfFromFile(data.fileData)"
+                    title="生成 PDF 报告"
+                  >
+                    <FileText :size="14" />
+                  </button>
+                  <button
                     class="tree-action-btn tree-download-btn"
                     @click.stop="downloadFile(data.fileData)"
                     title="下载文件"
@@ -151,7 +159,9 @@
 
 <script setup>
 import { computed, ref, onMounted, onUpdated, nextTick } from 'vue'
-import { Download, X, FolderCode, RefreshCw, Folder, FolderOpen } from 'lucide-vue-next'
+import { message } from 'ant-design-vue'
+import { Download, X, FolderCode, RefreshCw, Folder, FolderOpen, FileText } from 'lucide-vue-next'
+import { agentApi } from '@/apis'
 import {
   CheckCircleOutlined,
   SyncOutlined,
@@ -490,6 +500,49 @@ const downloadFile = (fileItem) => {
     URL.revokeObjectURL(url)
   } catch (error) {
     console.error('下载文件失败:', error)
+  }
+}
+
+const isPdfExporting = ref(false)
+
+const exportPdfFromFile = async (fileItem) => {
+  if (isPdfExporting.value) return
+  const content = fileItem?.content
+  if (!content) {
+    message.warning('文件内容为空，无法生成 PDF')
+    return
+  }
+
+  isPdfExporting.value = true
+  try {
+    const mdContent = Array.isArray(content) ? content.join('\n') : String(content)
+    const response = await agentApi.exportPdfReport('CropAgent', mdContent)
+    const blob = await response.blob()
+
+    const disposition = response.headers.get('Content-Disposition')
+    let filename = `crop_report_${Date.now()}`
+    if (disposition) {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+      if (match) {
+        filename = match[1].replace(/['"]/g, '')
+      }
+    }
+
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    message.success('PDF 已生成')
+  } catch (error) {
+    console.error('生成 PDF 失败:', error)
+    message.error(error.message || '生成 PDF 失败')
+  } finally {
+    isPdfExporting.value = false
   }
 }
 
@@ -1010,6 +1063,10 @@ const stopResize = () => {
 
 .tree-download-btn:hover {
   color: var(--main-600);
+}
+
+.tree-pdf-btn:hover {
+  color: #d32f2f;
 }
 
 .tree-delete-btn:hover {

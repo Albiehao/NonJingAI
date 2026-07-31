@@ -178,6 +178,10 @@ class LightRagKB(KnowledgeBase):
         model = select_model(model_spec=model_spec)
 
         async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+            # DeepSeek API 不支持 structured output (response_format with Pydantic model)
+            # 此参数会让 LightRAG 使用 .parse() 而不是 .create()，导致 400 错误
+            # 去掉后 API 返回纯文本，LightRAG 自行用 json_repair 解析，效果相同
+            kwargs.pop("keyword_extraction", None)
             return await openai_complete_if_cache(
                 model=model.model_name,
                 prompt=prompt,

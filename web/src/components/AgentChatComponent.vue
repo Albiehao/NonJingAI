@@ -47,14 +47,6 @@
             <MessageCirclePlus v-else class="nav-btn-icon" size="16" />
             <span class="text">新对话</span>
           </div>
-          <div v-if="!props.singleMode" class="agent-nav-btn" @click="openAgentModal">
-            <LoaderCircle v-if="!currentAgent" class="nav-btn-icon loading-icon" size="18" />
-            <Bot v-else :size="18" class="nav-btn-icon" />
-            <span class="text hide-text">
-              {{ currentAgentName || '选择智能体' }}
-            </span>
-            <ChevronDown size="16" class="switch-icon" />
-          </div>
         </div>
         <div class="header__right">
           <!-- AgentState 显示按钮已移动到输入框底部 -->
@@ -63,104 +55,183 @@
       </div>
 
       <div class="chat-content-container">
-        <!-- Main Chat Area -->
-        <div class="chat-main" ref="chatMainContainer">
+        <div
+          class="chat-main"
+          ref="chatMainContainer"
+          :class="{ 'is-empty': !conversations.length && !isLoadingMessages }"
+        >
           <div class="chat-box" ref="messagesContainer">
-            <div class="conv-box" v-for="(conv, index) in conversations" :key="index">
-              <AgentMessageComponent
-                v-for="(message, msgIndex) in conv.messages"
-                :message="message"
-                :key="msgIndex"
-                :is-processing="
-                  isProcessing &&
-                  conv.status === 'streaming' &&
-                  msgIndex === conv.messages.length - 1
-                "
-                :show-refs="showMsgRefs(message)"
-                @retry="retryMessage(message)"
-              >
-              </AgentMessageComponent>
-              <!-- 显示对话最后一个消息使用的模型 -->
-              <RefsComponent
-                v-if="shouldShowRefs(conv)"
-                :message="getLastMessage(conv)"
-                :show-refs="['model', 'copy']"
-                :is-latest-message="false"
-              />
-            </div>
-
-            <!-- 生成中的加载状态 - 增强条件支持主聊天和resume流程 -->
-            <div class="generating-status" v-if="isProcessing && conversations.length > 0">
-              <div class="generating-indicator">
-                <div class="loading-dots">
-                  <div></div>
-                  <div></div>
-                  <div></div>
+            <template v-if="conversations.length">
+              <div class="conv-box" v-for="(conv, index) in conversations" :key="index">
+                <AgentMessageComponent
+                  v-for="(message, msgIndex) in conv.messages"
+                  :message="message"
+                  :key="msgIndex"
+                  :is-processing="
+                    isProcessing &&
+                    conv.status === 'streaming' &&
+                    msgIndex === conv.messages.length - 1
+                  "
+                  :show-refs="showMsgRefs(message)"
+                  :agent-id="currentAgentId"
+                  @retry="retryMessage(message)"
+                />
+                <RefsComponent
+                  v-if="shouldShowRefs(conv)"
+                  :message="getLastMessage(conv)"
+                  :show-refs="['model', 'copy']"
+                  :is-latest-message="false"
+                  :agent-id="currentAgentId"
+                />
+              </div>
+              <div class="generating-status" v-if="isProcessing">
+                <div class="generating-indicator">
+                  <div class="loading-dots">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                  </div>
+                  <span class="generating-text">正在生成回复...</span>
                 </div>
-                <span class="generating-text">正在生成回复...</span>
+              </div>
+            </template>
+
+            <div v-else-if="!isLoadingMessages" class="start-view">
+              <div class="start-center">
+                <!-- Mode Slider -->
+                <div class="mode-slider">
+                  <button
+                    class="mode-option"
+                    :class="{ active: startMode === 'ask' }"
+                    @click="switchToAskMode"
+                  >千寻问农</button>
+                  <button
+                    class="mode-option"
+                    :class="{ active: startMode === 'prescription' }"
+                    @click="switchToPrescriptionMode"
+                  >千寻有方</button>
+                  <div class="slider-bg" :class="{ right: startMode === 'prescription' }"></div>
+                </div>
+
+                <!-- Ask Mode -->
+                <template v-if="startMode === 'ask'">
+                  <h1 class="start-title">{{ currentAgentName }}</h1>
+                  <p class="start-subtitle">{{ welcomeDescription }}</p>
+
+                  <div class="start-tags">
+                    <span v-for="item in welcomeFeatures" :key="item.label" class="start-tag">
+                      <component :is="item.icon" :size="14" />
+                      {{ item.label }}
+                    </span>
+                  </div>
+
+                  <div v-if="exampleQuestions.length" class="start-prompts">
+                    <p class="start-prompts-label">
+                      <Wheat :size="14" />
+                      试试这样问
+                    </p>
+                    <button
+                      v-for="question in exampleQuestions"
+                      :key="question.id"
+                      type="button"
+                      class="start-prompt"
+                      @click="handleExampleClick(question.text)"
+                    >
+                      <span>{{ question.text }}</span>
+                      <ArrowRight :size="15" class="start-prompt-arrow" />
+                    </button>
+                  </div>
+
+                  <p v-if="supportsFileUpload" class="start-note">
+                    支持上传作物图片，结合描述获得诊断建议
+                  </p>
+                </template>
+
+                <!-- Prescription Mode -->
+                <template v-if="startMode === 'prescription'">
+                  <h1 class="start-title">千寻有方</h1>
+                  <p class="start-subtitle">作物病虫害深度调查，并且生成详细报告，精准施策，科学防治</p>
+
+                  <div class="start-tags">
+                    <span class="start-tag">
+                      <Bug :size="14" />
+                      病害诊断
+                    </span>
+                    <span class="start-tag">
+                      <FlaskConical :size="14" />
+                      虫害识别
+                    </span>
+                    <span class="start-tag">
+                      <Droplets :size="14" />
+                      报告生成
+                    </span>
+                  </div>
+
+                  <div class="start-prompts">
+                    <p class="start-prompts-label">
+                      <ScrollText :size="14" />
+                      查询处方
+                    </p>
+                    <button
+                      type="button"
+                      class="start-prompt"
+                      @click="handleExampleClick('水稻稻瘟病怎么防治？')"
+                    >
+                      <span>水稻稻瘟病怎么防治？</span>
+                      <ArrowRight :size="15" class="start-prompt-arrow" />
+                    </button>
+                    <button
+                      type="button"
+                      class="start-prompt"
+                      @click="handleExampleClick('玉米螟用什么药效果最好？')"
+                    >
+                      <span>玉米螟用什么药效果最好？</span>
+                      <ArrowRight :size="15" class="start-prompt-arrow" />
+                    </button>
+                    <button
+                      type="button"
+                      class="start-prompt"
+                      @click="handleExampleClick('黄瓜霜霉病的防治方案')"
+                    >
+                      <span>黄瓜霜霉病的防治方案</span>
+                      <ArrowRight :size="15" class="start-prompt-arrow" />
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
-          <div class="bottom" :class="{ 'start-screen': !conversations.length }">
-            <!-- 人工审批弹窗 - 放在输入框上方 -->
-            <HumanApprovalModal
-              :visible="approvalState.showModal"
-              :question="approvalState.question"
-              :operation="approvalState.operation"
-              @approve="handleApprove"
-              @reject="handleReject"
-            />
 
+          <div class="bottom" :class="{ 'is-start-mode': !conversations.length }">
             <div class="message-input-wrapper">
-              <!-- 加载状态：加载消息 -->
               <div v-if="isLoadingMessages" class="chat-loading">
                 <div class="loading-spinner"></div>
                 <span>正在加载消息...</span>
               </div>
 
-              <!-- 打招呼区域 - 在输入框上方 -->
-              <div v-if="!conversations.length" class="chat-examples-input">
-                <h1>👋 您好，我是{{ currentAgentName }}！</h1>
+              <div class="input-dock">
+                <AgentInputArea
+                  ref="messageInputRef"
+                  v-model="userInput"
+                  :is-loading="isProcessing"
+                  :disabled="!currentAgent"
+                  :send-button-disabled="(!userInput || !currentAgent) && !isProcessing"
+                  placeholder="输入问题，或上传作物图片..."
+                  :supports-file-upload="supportsFileUpload"
+                  :agent-id="currentAgentId"
+                  :thread-id="currentChatId"
+                  :ensure-thread="ensureActiveThread"
+                  :has-state-content="hasAgentStateContent"
+                  :is-panel-open="isAgentPanelOpen"
+                  :mention="mentionConfig"
+                  @send="handleSendOrStop"
+                  @attachment-changed="handleAgentStateRefresh"
+                  @toggle-panel="toggleAgentPanel"
+                />
               </div>
 
-              <AgentInputArea
-                ref="messageInputRef"
-                v-model="userInput"
-                :is-loading="isProcessing"
-                :disabled="!currentAgent"
-                :send-button-disabled="(!userInput || !currentAgent) && !isProcessing"
-                placeholder="输入问题..."
-                :supports-file-upload="supportsFileUpload"
-                :agent-id="currentAgentId"
-                :thread-id="currentChatId"
-                :ensure-thread="ensureActiveThread"
-                :has-state-content="hasAgentStateContent"
-                :is-panel-open="isAgentPanelOpen"
-                :mention="mentionConfig"
-                @send="handleSendOrStop"
-                @attachment-changed="handleAgentStateRefresh"
-                @toggle-panel="toggleAgentPanel"
-              />
-
-              <!-- 示例问题 -->
-              <div
-                class="example-questions"
-                v-if="!conversations.length && exampleQuestions.length > 0"
-              >
-                <div class="example-chips">
-                  <div
-                    v-for="question in exampleQuestions"
-                    :key="question.id"
-                    class="example-chip"
-                    @click="handleExampleClick(question.text)"
-                  >
-                    {{ question.text }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="bottom-actions" v-else>
-                <p class="note">请注意辨别内容的可靠性</p>
+              <div class="bottom-actions" v-if="conversations.length">
+                <p class="note">千寻也会犯错，重要农事务必再次咨询专家</p>
               </div>
             </div>
           </div>
@@ -197,12 +268,26 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch, nextTick, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import AgentInputArea from '@/components/AgentInputArea.vue'
 import AgentMessageComponent from '@/components/AgentMessageComponent.vue'
 import ChatSidebarComponent from '@/components/ChatSidebarComponent.vue'
 import RefsComponent from '@/components/RefsComponent.vue'
-import { PanelLeftOpen, MessageCirclePlus, LoaderCircle, ChevronDown, Bot } from 'lucide-vue-next'
+import {
+  PanelLeftOpen,
+  MessageCirclePlus,
+  LoaderCircle,
+  ImageIcon,
+  BookOpen,
+  Sprout,
+  ArrowRight,
+  Wheat,
+  ScrollText,
+  Bug,
+  FlaskConical,
+  Droplets
+} from 'lucide-vue-next'
 import { handleChatError, handleValidationError } from '@/utils/errorHandler'
 import { ScrollController } from '@/utils/scrollController'
 import { AgentValidator } from '@/utils/agentValidator'
@@ -210,9 +295,7 @@ import { useAgentStore } from '@/stores/agent'
 import { useChatUIStore } from '@/stores/chatUI'
 import { storeToRefs } from 'pinia'
 import { MessageProcessor } from '@/utils/messageProcessor'
-import { agentApi, threadApi, databaseApi, mcpApi } from '@/apis'
-import HumanApprovalModal from '@/components/HumanApprovalModal.vue'
-import { useApproval } from '@/composables/useApproval'
+import { agentApi, threadApi, databaseApi } from '@/apis'
 import { useAgentStreamHandler } from '@/composables/useAgentStreamHandler'
 import AgentPanel from '@/components/AgentPanel.vue'
 
@@ -276,9 +359,34 @@ const localUIState = reactive({
   isInitialRender: true
 })
 
+const router = useRouter()
+
+// Start view mode toggle - computed from current agent
+const startMode = computed(() => currentAgentId.value === 'CropAgent' ? 'prescription' : 'ask')
+const switchToAskMode = () => {
+  if (startMode.value === 'prescription') {
+    const id = defaultAgentId.value || agents.value[0]?.id
+    if (id && id !== currentAgentId.value) {
+      if (props.singleMode) {
+        router.push(`/agent/${id}`)
+      } else {
+        agentStore.selectAgent(id)
+      }
+    }
+  }
+}
+const switchToPrescriptionMode = () => {
+  if (startMode.value !== 'prescription') {
+    if (props.singleMode) {
+      router.push('/agent/CropAgent')
+    } else {
+      agentStore.selectAgent('CropAgent')
+    }
+  }
+}
+
 // Mention resources
 const availableKnowledgeBases = ref([])
-const availableMcps = ref([])
 
 // Agent Panel State
 const isAgentPanelOpen = ref(false)
@@ -302,6 +410,18 @@ const currentAgentName = computed(() => {
   const agent = currentAgent.value
   return agent ? agent.name : '智能体'
 })
+
+const welcomeDescription = computed(() => {
+  const desc = currentAgent.value?.description
+  if (desc) return desc
+  return '面向种植、巡田和农技服务，支持作物图片识别、病虫害诊断与自然语言问答。'
+})
+
+const welcomeFeatures = [
+  { label: '图像识别', desc: '上传叶片或果实照片', icon: ImageIcon },
+  { label: '农技问答', desc: '追问原因与处置建议', icon: BookOpen },
+  { label: '田间诊断', desc: '结合现场描述分析', icon: Sprout }
+]
 
 const currentAgent = computed(() => {
   if (!currentAgentId.value || !agents.value || !agents.value.length) return null
@@ -390,11 +510,10 @@ const mentionConfig = computed(() => {
     })
   }
 
-  // Filter KBs and MCPs based on agent config
+  // Filter KBs based on agent config
   const configItems = configurableItems.value || {}
   const currentConfig = agentConfig.value || {}
   const allowedKbNames = new Set()
-  const allowedMcpNames = new Set()
 
   Object.entries(configItems).forEach(([key, item]) => {
     const kind = item?.template_metadata?.kind
@@ -403,21 +522,17 @@ const mentionConfig = computed(() => {
     if (Array.isArray(val)) {
       if (kind === 'knowledges') {
         val.forEach((v) => allowedKbNames.add(v))
-      } else if (kind === 'mcps') {
-        val.forEach((v) => allowedMcpNames.add(v))
       }
     }
   })
 
   const knowledgeBases = availableKnowledgeBases.value.filter((kb) => allowedKbNames.has(kb.name))
-  const mcps = availableMcps.value.filter((mcp) => allowedMcpNames.has(mcp.name))
 
-  if (!files.length && !knowledgeBases.length && !mcps.length) return null
+  if (!files.length && !knowledgeBases.length) return null
 
   return {
     files,
     knowledgeBases,
-    mcps
   }
 })
 
@@ -428,13 +543,7 @@ const shouldShowRefs = computed(() => {
   return (conv) => {
     return (
       getLastMessage(conv) &&
-      conv.status !== 'streaming' &&
-      !approvalState.showModal &&
-      !(
-        approvalState.threadId &&
-        chatState.currentThreadId === approvalState.threadId &&
-        isProcessing.value
-      )
+      conv.status !== 'streaming'
     )
   }
 })
@@ -482,15 +591,13 @@ const isStreaming = computed(() => {
 const isProcessing = computed(() => isStreaming.value)
 
 // ==================== SCROLL & RESIZE HANDLING ====================
-// Update scroll controller to target .chat-main
-const scrollController = new ScrollController('.chat-main')
+const scrollController = new ScrollController('.chat-box')
 
 onMounted(() => {
   nextTick(() => {
-    // Update event listener to target .chat-main
-    const chatMainContainer = document.querySelector('.chat-main')
-    if (chatMainContainer) {
-      chatMainContainer.addEventListener('scroll', scrollController.handleScroll, { passive: true })
+    const chatBoxContainer = document.querySelector('.chat-box')
+    if (chatBoxContainer) {
+      chatBoxContainer.addEventListener('scroll', scrollController.handleScroll, { passive: true })
     }
   })
   setTimeout(() => {
@@ -562,14 +669,22 @@ const resetOnGoingConv = (threadId = null) => {
 
 // ==================== 线程管理方法 ====================
 // 获取当前智能体的线程列表
-const fetchThreads = async (agentId = null) => {
-  const targetAgentId = agentId || currentAgentId.value
-  if (!targetAgentId) return
+const fetchThreads = async () => {
+  const agentList = agents.value
+  if (!agentList || !agentList.length) return
 
   chatUIStore.isLoadingThreads = true
   try {
-    const fetchedThreads = await threadApi.getThreads(targetAgentId)
-    threads.value = fetchedThreads || []
+    const allThreads = []
+    for (const agent of agentList) {
+      const fetchedThreads = await threadApi.getThreads(agent.id)
+      if (fetchedThreads && fetchedThreads.length) {
+        allThreads.push(...fetchedThreads.map((t) => ({ ...t, agent_id: t.agent_id || agent.id })))
+      }
+    }
+    // Sort by creation date, newest first
+    allThreads.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    threads.value = allThreads
   } catch (error) {
     console.error('Failed to fetch threads:', error)
     handleChatError(error, 'fetch')
@@ -697,12 +812,8 @@ const fetchAgentState = async (agentId, threadId) => {
 
 const fetchMentionResources = async () => {
   try {
-    const [dbsRes, mcpsRes] = await Promise.all([
-      databaseApi.getAccessibleDatabases().catch(() => ({ databases: [] })),
-      mcpApi.getMcpServers().catch(() => ({ data: [] }))
-    ])
+    const dbsRes = await databaseApi.getAccessibleDatabases().catch(() => ({ databases: [] }))
     availableKnowledgeBases.value = dbsRes.databases || []
-    availableMcps.value = mcpsRes.data || []
   } catch (e) {
     console.warn('Failed to fetch mention resources', e)
   }
@@ -722,16 +833,8 @@ const ensureActiveThread = async (title = '新的对话') => {
   return null
 }
 
-// ==================== 审批功能管理 ====================
-const { approvalState, handleApproval, processApprovalInStream } = useApproval({
-  getThreadState,
-  resetOnGoingConv,
-  fetchThreadMessages
-})
-
 const { handleAgentResponse } = useAgentStreamHandler({
   getThreadState,
-  processApprovalInStream,
   currentAgentId,
   supportsTodo,
   supportsFiles
@@ -768,8 +871,8 @@ const sendMessage = async ({
   }
 
   // 如果有图片，添加到请求中
-  if (imageData && imageData.imageContent) {
-    requestData.image_content = imageData.imageContent
+  if (imageData && imageData.imageUrl) {
+    requestData.image_url = imageData.imageUrl
   }
 
   try {
@@ -837,9 +940,13 @@ const createNewChat = async () => {
 }
 
 const selectChat = async (chatId) => {
+  const thread = threads.value.find((t) => t.id === chatId)
+  if (!thread) return
+  const threadAgentId = thread.agent_id
+
   if (
     !AgentValidator.validateAgentIdWithError(
-      currentAgentId.value,
+      threadAgentId,
       '选择对话',
       handleValidationError
     )
@@ -860,7 +967,7 @@ const selectChat = async (chatId) => {
   chatState.currentThreadId = chatId
   chatUIStore.isLoadingMessages = true
   try {
-    await fetchThreadMessages({ agentId: currentAgentId.value, threadId: chatId })
+    await fetchThreadMessages({ agentId: threadAgentId, threadId: chatId })
   } catch (error) {
     handleChatError(error, 'load')
   } finally {
@@ -869,17 +976,22 @@ const selectChat = async (chatId) => {
 
   await nextTick()
   scrollController.scrollToBottomStaticForce()
-  await fetchAgentState(currentAgentId.value, chatId)
+  await fetchAgentState(threadAgentId, chatId)
 }
 
 const deleteChat = async (chatId) => {
+  const thread = threads.value.find((t) => t.id === chatId)
+  if (!thread) return
+  const threadAgentId = thread.agent_id
+
   if (
     !AgentValidator.validateAgentIdWithError(
-      currentAgentId.value,
+      threadAgentId,
       '删除对话',
       handleValidationError
     )
   )
+
     return
   try {
     await deleteThread(chatId)
@@ -962,13 +1074,11 @@ const handleSendMessage = async ({ image } = {}) => {
   } finally {
     threadState.streamAbortController = null
     // 异步加载历史记录，保持当前消息显示直到历史记录加载完成
-    fetchThreadMessages({ agentId: currentAgentId.value, threadId: threadId }).finally(
-      () => {
-        // 历史记录加载完成后，安全地清空当前进行中的对话
-        resetOnGoingConv(threadId)
-        scrollController.scrollToBottom()
-      }
-    )
+    fetchThreadMessages({ agentId: currentAgentId.value, threadId: threadId }).finally(() => {
+      // 历史记录加载完成后，安全地清空当前进行中的对话
+      resetOnGoingConv(threadId)
+      scrollController.scrollToBottom()
+    })
   }
 }
 
@@ -991,74 +1101,6 @@ const handleSendOrStop = async (payload) => {
     return
   }
   await handleSendMessage(payload)
-}
-
-// ==================== 人工审批处理 ====================
-const handleApprovalWithStream = async (approved) => {
-  console.log('🔄 [STREAM] Starting resume stream processing')
-
-  const threadId = approvalState.threadId
-  if (!threadId) {
-    message.error('无效的审批请求')
-    approvalState.showModal = false
-    return
-  }
-
-  const threadState = getThreadState(threadId)
-  if (!threadState) {
-    message.error('无法找到对应的对话线程')
-    approvalState.showModal = false
-    return
-  }
-
-  try {
-    // 使用审批 composable 处理审批
-    const response = await handleApproval(
-      approved,
-      currentAgentId.value,
-      selectedAgentConfigId.value
-    )
-
-    if (!response) return // 如果 handleApproval 抛出错误，这里不会执行
-
-    console.log('🔄 [STREAM] Processing resume streaming response')
-
-    // 处理流式响应
-    await handleAgentResponse(response, threadId, (chunk) => {
-      console.log('🔄 [STREAM] Processing chunk:', chunk)
-    })
-
-    console.log('🔄 [STREAM] Resume stream processing completed')
-  } catch (error) {
-    console.error('❌ [STREAM] Resume stream failed:', error)
-    if (error.name !== 'AbortError') {
-      console.error('Resume approval error:', error)
-      // handleChatError 已在 useApproval 中调用
-    }
-  } finally {
-    console.log('🔄 [STREAM] Cleaning up streaming state')
-    if (threadState) {
-      threadState.isStreaming = false
-      threadState.streamAbortController = null
-    }
-
-    // 异步加载历史记录，保持当前消息显示直到历史记录加载完成
-    fetchThreadMessages({ agentId: currentAgentId.value, threadId: threadId }).finally(
-      () => {
-        // 历史记录加载完成后，安全地清空当前进行中的对话
-        resetOnGoingConv(threadId)
-        scrollController.scrollToBottom()
-      }
-    )
-  }
-}
-
-const handleApprove = () => {
-  handleApprovalWithStream(true)
-}
-
-const handleReject = () => {
-  handleApprovalWithStream(false)
 }
 
 // 处理示例问题点击
@@ -1164,23 +1206,6 @@ const getLastMessage = (conv) => {
 }
 
 const showMsgRefs = (msg) => {
-  // 如果正在审批中，不显示 refs
-  if (approvalState.showModal) {
-    return false
-  }
-
-  // 如果当前线程ID与审批线程ID匹配，但审批框已关闭（说明刚刚处理完审批）
-  // 且当前有新的流式处理正在进行，则不显示之前被中断的消息的 refs
-  if (
-    approvalState.threadId &&
-    chatState.currentThreadId === approvalState.threadId &&
-    !approvalState.showModal &&
-    isProcessing
-  ) {
-    return false
-  }
-
-  // 只有真正完成的消息才显示 refs
   if (msg.isLast && msg.status === 'finished') {
     return ['copy']
   }
@@ -1189,17 +1214,15 @@ const showMsgRefs = (msg) => {
 
 // ==================== LIFECYCLE & WATCHERS ====================
 const loadChatsList = async () => {
-  const agentId = currentAgentId.value
-  if (!agentId) {
-    console.warn('No agent selected, cannot load chats list')
+  if (!agents.value || !agents.value.length) {
+    console.warn('No agents available, cannot load chats list')
     threads.value = []
     chatState.currentThreadId = null
     return
   }
 
   try {
-    await fetchThreads(agentId)
-    if (currentAgentId.value !== agentId) return
+    await fetchThreads()
 
     // 如果当前线程不在线程列表中，清空当前线程
     if (
@@ -1236,19 +1259,25 @@ onMounted(async () => {
 
 watch(
   currentAgentId,
-  async (newAgentId, oldAgentId) => {
-    if (newAgentId !== oldAgentId) {
-      // 清理当前线程状态
-      chatState.currentThreadId = null
-      threadMessages.value = {}
-      // 清理所有线程状态
-      resetOnGoingConv()
-
-      if (newAgentId) {
+  async (newAgentId) => {
+    if (newAgentId) {
+      // 等待 agents 加载完成后再获取线程列表
+      if (agents.value && agents.value.length) {
         await loadChatsList()
       } else {
-        threads.value = []
+        // agents 还未加载，通过 watcher 等待
+        const unwatch = watch(agents, async (val) => {
+          if (val && val.length) {
+            unwatch()
+            await loadChatsList()
+          }
+        }, { immediate: false })
       }
+    } else {
+      threads.value = []
+      chatState.currentThreadId = null
+      threadMessages.value = {}
+      resetOnGoingConv()
     }
   },
   { immediate: true }
@@ -1257,9 +1286,7 @@ watch(
 watch(
   conversations,
   () => {
-    if (isProcessing.value) {
-      scrollController.scrollToBottom()
-    }
+    scrollController.scrollToBottom()
   },
   { deep: true, flush: 'post' }
 )
@@ -1274,39 +1301,51 @@ watch(
   width: 100%;
   height: 100%;
   position: relative;
+  overflow: hidden;
+  background: linear-gradient(rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.95)), url('/zj-bj.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .chat {
   position: relative;
+  isolation: isolate;
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Changed from overflow-x: hidden to overflow: hidden */
-  position: relative;
+  overflow: hidden;
   box-sizing: border-box;
   transition: all 0.3s ease;
+  background: transparent;
 
   .chat-header {
     user-select: none;
-    // position: sticky; // Not needed if .chat is flex col and header is fixed height item
-    // top: 0;
-    z-index: 10;
+    z-index: 2;
     height: var(--header-height);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 8px;
-    flex-shrink: 0; /* Prevent header from shrinking */
+    padding: 0 16px;
+    flex-shrink: 0;
+    background: transparent;
+    border-bottom: none;
 
     .header__left,
     .header__right {
       display: flex;
       align-items: center;
+      gap: 4px;
     }
 
     .switch-icon {
       color: var(--gray-500);
-      transition: all 0.2s ease;
+      transition: color 0.2s ease;
     }
 
     .agent-nav-btn:hover .switch-icon {
@@ -1321,6 +1360,7 @@ watch(
   flex-direction: row;
   overflow: hidden;
   position: relative;
+  z-index: 1;
   width: 100%;
   contain: layout;
 }
@@ -1329,14 +1369,21 @@ watch(
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* Scroll is here now */
+  overflow: hidden;
   position: relative;
+  z-index: 1;
   transition:
     flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 0; /* Prevent flex item from overflowing */
+  min-width: 0;
+  background: transparent;
+}
 
-  scrollbar-width: none;
+.chat-main.is-empty .chat-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-top: min(16vh, 110px);
 }
 
 .agent-panel-wrapper {
@@ -1372,54 +1419,194 @@ watch(
   transition: none !important;
 }
 
-.chat-examples-input {
-  padding: 32px 0;
-  text-align: center;
+/* Mode Slider */
+.mode-slider {
+  position: relative;
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 40px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 
-  h1 {
-    font-size: 1.2rem;
-    color: var(--gray-1000);
-    margin: 0;
+  .mode-option {
+    position: relative;
+    z-index: 2;
+    padding: 10px 32px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--gray-600);
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.25s ease;
+    white-space: nowrap;
+
+    &.active {
+      color: var(--gray-0);
+    }
+  }
+
+  .slider-bg {
+    position: absolute;
+    z-index: 1;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: var(--main-700);
+    border-radius: 999px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(4, 106, 130, 0.25);
+
+    &.right {
+      transform: translateX(100%);
+    }
   }
 }
 
-.example-questions {
-  margin-top: 16px;
+.start-view {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 3rem 2.5rem;
+}
+
+.start-center {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 720px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-  .example-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
+.start-title {
+  margin: 16px 0 12px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--gray-1000);
+}
+
+.start-subtitle {
+  margin: 0 auto 32px;
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--gray-600);
+}
+
+.start-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.start-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--main-800);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(57, 150, 174, 0.15);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+
+  svg {
+    color: var(--main-600);
+  }
+}
+
+.start-prompts {
+  text-align: left;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 24px rgba(90, 130, 100, 0.06);
+}
+
+.start-prompts-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--main-700);
+  text-transform: none;
+
+  svg {
+    color: var(--main-600);
+  }
+}
+
+.start-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 12px 12px;
+  text-align: left;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--gray-800);
+  background: rgba(255, 255, 255, 0.5);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+
+  span {
+    flex: 1;
+    min-width: 0;
   }
 
-  .example-chip {
-    padding: 6px 12px;
-    background: var(--gray-25);
-    // border: 1px solid var(--gray-100);
-    border-radius: 16px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    color: var(--gray-700);
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  &:hover {
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--main-800);
 
-    &:hover {
-      // background: var(--main-25);
-      border-color: var(--main-200);
-      color: var(--main-700);
-      box-shadow: 0 0px 4px rgba(0, 0, 0, 0.03);
-    }
-
-    &:active {
-      transform: translateY(0);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    .start-prompt-arrow {
+      opacity: 1;
+      transform: translateX(2px);
     }
   }
+}
+
+.start-prompt-arrow {
+  flex-shrink: 0;
+  color: var(--main-600);
+  opacity: 0.45;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.start-note {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--gray-500);
 }
 
 .chat-loading {
@@ -1452,32 +1639,38 @@ watch(
 
 .chat-box {
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
-  flex-grow: 1;
-  padding: 1rem 1.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 2.5rem 1rem;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .conv-box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 20px;
+  padding: 1rem 0 1.5rem;
+  margin-bottom: 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .bottom {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   width: 100%;
-  margin: 0 auto;
-  padding: 4px 1rem 0 1rem;
-  background: var(--gray-0);
-  z-index: 1000;
+  padding: 0 2.5rem 24px;
+  background: linear-gradient(180deg, transparent 0%, #f8faf7 40%);
+  z-index: 2;
 
   .message-input-wrapper {
     width: 100%;
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
 
     .bottom-actions {
@@ -1487,25 +1680,32 @@ watch(
     }
 
     .note {
-      font-size: small;
-      color: var(--gray-300);
-      margin: 4px 0;
+      font-size: 12px;
+      color: var(--gray-500);
+      margin: 6px 0 0;
       user-select: none;
+      text-align: center;
     }
   }
 
-  &.start-screen {
-    position: absolute;
-    top: 45%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    bottom: auto;
-    max-width: 800px;
-    width: 90%;
-    background: transparent;
-    padding: 0;
-    border-top: none;
-    z-index: 100; /* Ensure it's above other elements */
+  &.is-start-mode {
+    padding-top: 12px;
+  }
+}
+
+.input-dock {
+  width: 100%;
+
+  :deep(.input-box) {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+
+    &:focus-within {
+      border-color: var(--main-300);
+      box-shadow: 0 6px 28px rgba(4, 106, 130, 0.12);
+    }
   }
 }
 
@@ -1539,15 +1739,17 @@ watch(
 .generating-status {
   display: flex;
   justify-content: flex-start;
-  padding: 1rem 0;
+  padding: 0.5rem 0 1rem;
   animation: fadeInUp 0.4s ease-out;
-  transition: all 0.2s;
 }
 
 .generating-indicator {
   display: flex;
   align-items: center;
-  padding: 0.75rem 0rem;
+  padding: 0.65rem 1rem;
+  background: var(--gray-0);
+  border: 1px solid var(--gray-100);
+  border-radius: 12px;
 
   .generating-text {
     margin-left: 12px;
@@ -1582,20 +1784,23 @@ watch(
   }
 }
 
-@media (max-width: 1800px) {
-  .chat-header {
-    background-color: var(--gray-0);
-    border-bottom: 1px solid var(--gray-100);
-  }
-}
-
 @media (max-width: 768px) {
-  .chat-header {
-    .header__left {
-      .text {
-        display: none;
-      }
-    }
+  .chat-header .header__left .text {
+    display: none;
+  }
+
+  .hero-features {
+    grid-template-columns: 1fr;
+  }
+
+  .example-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-head {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 }
 </style>
@@ -1655,5 +1860,77 @@ watch(
 .agent-nav-btn.agent-state-btn.active {
   color: var(--main-700);
   background-color: var(--main-20);
+}
+</style>
+
+<style lang="less">
+#app-router-view {
+  background: transparent !important;
+}
+
+/* ========== Dark Mode Overrides ========== */
+:root.dark #app-router-view {
+  background: #0a0a0a !important;
+}
+
+:root.dark .chat-container {
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/zj-bjd.png') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+:root.dark .bottom {
+  background: linear-gradient(180deg, transparent 0%, rgba(10, 10, 10, 0.95) 40%) !important;
+}
+
+:root.dark .input-dock .input-box {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root.dark .mode-slider {
+  background: rgba(30, 30, 30, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root.dark .start-tag {
+  background: rgba(30, 30, 30, 0.6) !important;
+  border-color: rgba(74, 175, 78, 0.15) !important;
+}
+
+:root.dark .start-prompts {
+  background: rgba(30, 30, 30, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+:root.dark .start-prompt {
+  background: rgba(40, 40, 40, 0.5) !important;
+  color: var(--gray-700) !important;
+}
+
+:root.dark .start-prompt:hover {
+  background: rgba(50, 50, 50, 0.8) !important;
+  color: var(--main-500) !important;
+}
+
+:root.dark .start-note {
+  color: var(--gray-500) !important;
+}
+
+:root.dark .agent-panel-wrapper {
+  background: var(--gray-10) !important;
+  border-color: var(--gray-150) !important;
+}
+
+:root.dark .chat-sidebar {
+  background: rgba(10, 10, 10, 0.75) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* Tool call cards */
+:root.dark .tool-call-display {
+  background: var(--gray-10) !important;
+  outline-color: var(--gray-150) !important;
 }
 </style>

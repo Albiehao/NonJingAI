@@ -1,16 +1,13 @@
 """Knowledge base tools for retrieval and mindmap queries."""
 
 import asyncio
-import logging
 from typing import Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
+from src.utils.logging_config import logger
 from src import knowledge_base
-from src.utils import logger
 
-logger = logging.getLogger(__name__)
 
 
 class KnowledgeRetrieverModel(BaseModel):
@@ -18,7 +15,7 @@ class KnowledgeRetrieverModel(BaseModel):
 
     query_text: str = Field(
         description=(
-            "查询的关键词，查询的时候，应该尽量以可能帮助回答这个问题的关键词进行查询，不要直接使用用户的原始输入去查询。"
+            "查询的关键词，查询的时候，应该尽量以可能帮助回答这个问题的关键词进行查询，不要直接使用用户的原始输入去查询。尽量精简，允许重复的词语，允许去除定语，比如水稻白叶枯病可以输入白叶枯病"
         )
     )
     operation: str = Field(
@@ -142,7 +139,7 @@ def get_kb_based_tools(db_names: list[str] | None = None) -> list:
             # 使用工厂函数创建检索器包装函数
             retriever_wrapper = _create_retriever_wrapper(db_id, retrieve_info)
 
-            safename = retrieve_info["name"].replace(" ", "_")[:20]
+            safename = db_id
 
             args_schema = KnowledgeRetrieverModel
             if retrieve_info["metadata"]["kb_type"] in ["milvus"]:

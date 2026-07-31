@@ -49,7 +49,7 @@
 
                 <!-- <div>{{ value }}</div> -->
                 <!-- 模型选择 -->
-                <div v-if="value.template_metadata.kind === 'llm'" class="model-selector">
+                <div v-if="isModelConfig(key, value)" class="model-selector">
                   <ModelSelectorComponent
                     @select-model="(spec) => handleModelChange(key, spec)"
                     :model_spec="agentConfig[key] || ''"
@@ -121,23 +121,26 @@
                   </div>
                 </div> -->
 
-                <!-- 布尔类型 -->
+                <!-- 布尔类型 (优先检查 configurableItems 中的 type) -->
                 <a-switch
-                  v-else-if="typeof agentConfig[key] === 'boolean'"
+                  v-else-if="value?.type === 'bool' || typeof agentConfig[key] === 'boolean'"
                   :checked="agentConfig[key]"
                   @update:checked="(val) => agentStore.updateAgentConfig({ [key]: val })"
                 />
 
-                <!-- 单选 -->
+                <!-- 单选 (优先检查 template_metadata.kind === 'llm' 且有 options) -->
                 <a-select
                   v-else-if="
-                    value?.options.length > 0 && (value?.type === 'str' || value?.type === 'select')
+                    (value?.template_metadata?.kind === 'llm' && value?.options?.length > 0) ||
+                    (value?.options?.length > 0 &&
+                      (value?.type === 'str' || value?.type === 'select'))
                   "
                   :value="agentConfig[key]"
                   @update:value="(val) => agentStore.updateAgentConfig({ [key]: val })"
                   class="config-select"
+                  :disabled="isThinkingEffortDisabled(key)"
                 >
-                  <a-select-option v-for="option in value.options" :key="option" :value="option">
+                  <a-select-option v-for="option in value?.options" :key="option" :value="option">
                     {{ option.label || option }}
                   </a-select-option>
                 </a-select>
@@ -372,6 +375,7 @@ import ModelSelectorComponent from '@/components/ModelSelectorComponent.vue'
 import { useAgentStore } from '@/stores/agent'
 import { useUserStore } from '@/stores/user'
 import { useDatabaseStore } from '@/stores/database'
+import { useConfigStore } from '@/stores/config'
 import { storeToRefs } from 'pinia'
 
 // Props
@@ -393,6 +397,7 @@ const emit = defineEmits(['close'])
 const agentStore = useAgentStore()
 const userStore = useUserStore()
 const databaseStore = useDatabaseStore()
+const configStore = useConfigStore()
 
 watch(
   () => props.isOpen,
@@ -441,7 +446,6 @@ const hasOtherConfigs = computed(() => {
     const isBasic =
       value.template_metadata?.kind === 'prompt' || value.template_metadata?.kind === 'llm'
     const isTools =
-      value.template_metadata?.kind === 'mcps' ||
       value.template_metadata?.kind === 'knowledges' ||
       value.template_metadata?.kind === 'tools'
 
@@ -472,6 +476,26 @@ const getConfigOptions = (value) => {
   }
   return value?.options || []
 }
+
+const isModelConfig = (key, value) => {
+  return value?.template_metadata?.kind === 'llm' && key === 'model'
+}
+
+const isThinkingEffortDisabled = (key) => {
+  return key === 'thinking_effort' && agentConfig.value.thinking_enabled === false
+}
+
+// 检查当前模型是否支持思考
+const currentModelSupportsThinking = computed(() => {
+  const modelSpec = agentConfig.value.model || ''
+  if (!modelSpec) return false
+
+  // 使用 model_options 来查找模型信息
+  const modelOptions = configStore.config?.model_options || []
+  const modelInfo = modelOptions.find((opt) => opt.value === modelSpec)
+
+  return modelInfo?.supports_thinking === true
+})
 
 const isListConfig = (key, value) => {
   const isTools = value?.template_metadata?.kind === 'tools'
@@ -518,10 +542,17 @@ const filteredOptions = computed(() => {
 
 // 方法
 const shouldShowConfig = (key, value) => {
+  // 如果是思考相关配置，但模型不支持思考，则隐藏
+  if (
+    (key === 'thinking_enabled' || key === 'thinking_effort') &&
+    !currentModelSupportsThinking.value
+  ) {
+    return false
+  }
+
   const isBasic =
     value.template_metadata?.kind === 'prompt' || value.template_metadata?.kind === 'llm'
   const isTools =
-    value.template_metadata?.kind === 'mcps' ||
     value.template_metadata?.kind === 'knowledges' ||
     value.template_metadata?.kind === 'tools'
 
@@ -529,7 +560,7 @@ const shouldShowConfig = (key, value) => {
     // 基础：System Prompt, LLM Model
     return isBasic
   } else if (activeTab.value === 'tools') {
-    // 工具：Tools, MCPs, Knowledges
+    // 工具：Tools, Knowledges
     return isTools
   } else {
     // 其他：剩余所有配置

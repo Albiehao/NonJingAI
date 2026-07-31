@@ -1,6 +1,10 @@
 MIT License
 
-Copyright (c) 2025 The Project Contributors
+Copyright (c) 2025 Yuxi Project Contributors
+
+禾影千寻 (QianXun) 基于上游开源项目"语析 (Yuxi)"（https://github.com/xerrors/Yuxi）进行深度二次开发，并遵循其 MIT 开源许可。禾影千寻亦基于本项目"禾影千寻"的底层架构进行衍生开发。
+
+Copyright (c) 2025 QianXu Project Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

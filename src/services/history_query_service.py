@@ -47,8 +47,9 @@ async def get_agent_history_view(
             "error_type": msg.extra_metadata.get("error_type") if msg.extra_metadata else None,
             "error_message": msg.extra_metadata.get("error_message") if msg.extra_metadata else None,
             "extra_metadata": msg.extra_metadata,
+            "additional_kwargs": (msg.extra_metadata.get("additional_kwargs") or {}) if msg.extra_metadata else {},
             "message_type": msg.message_type,
-            "image_content": msg.image_content,
+            "image_url": msg.image_content,
             "feedback": user_feedback,
         }
 

@@ -1,24 +1,36 @@
 <script setup>
-import { ref, reactive, onMounted, computed, provide } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { GithubOutlined } from '@ant-design/icons-vue'
-import { Bot, Waypoints, LibraryBig, BarChart3, CircleCheck, Clock } from 'lucide-vue-next'
-
+import {
+  Bot,
+  Waypoints,
+  LibraryBig,
+  BarChart3,
+  CircleCheck,
+  Package,
+  Settings,
+  Sprout,
+  User,
+  Webhook
+} from 'lucide-vue-next'
 
 import { useConfigStore } from '@/stores/config'
 import { useDatabaseStore } from '@/stores/database'
 import { useInfoStore } from '@/stores/info'
 import { useTaskerStore } from '@/stores/tasker'
+import { useUserStore } from '@/stores/user'
+import { useAgentStore } from '@/stores/agent'
 import { storeToRefs } from 'pinia'
 import UserInfoComponent from '@/components/UserInfoComponent.vue'
 import DebugComponent from '@/components/DebugComponent.vue'
 import TaskCenterDrawer from '@/components/TaskCenterDrawer.vue'
-import SettingsModal from '@/components/SettingsModal.vue'
 
 const configStore = useConfigStore()
 const databaseStore = useDatabaseStore()
 const infoStore = useInfoStore()
 const taskerStore = useTaskerStore()
+const userStore = useUserStore()
+const agentStore = useAgentStore()
 const { activeCount: activeCountRef, isDrawerOpen } = storeToRefs(taskerStore)
 
 const layoutSettings = reactive({
@@ -26,20 +38,8 @@ const layoutSettings = reactive({
   useTopBar: false // 是否使用顶栏
 })
 
-// Add state for GitHub stars
-const githubStars = ref(0)
-const isLoadingStars = ref(false)
-
 // Add state for debug modal
 const showDebugModal = ref(false)
-
-// Add state for settings modal
-const showSettingsModal = ref(false)
-
-// Provide settings modal methods to child components
-const openSettingsModal = () => {
-  showSettingsModal.value = true
-}
 
 // Handle debug modal close
 const handleDebugModalClose = () => {
@@ -54,30 +54,24 @@ const getRemoteDatabase = () => {
   databaseStore.loadDatabases()
 }
 
-// Fetch GitHub stars count
-const fetchGithubStars = async () => {
-  try {
-    isLoadingStars.value = true
-    // 公共API，可以直接使用fetch
-    const response = await fetch('https://api.github.com/repos/xerrors/Yuxi-Know')
-    const data = await response.json()
-    githubStars.value = data.stargazers_count
-  } catch (error) {
-    console.error('获取GitHub stars失败:', error)
-  } finally {
-    isLoadingStars.value = false
-  }
-}
-
 onMounted(async () => {
   // 加载信息配置
   await infoStore.loadInfoConfig()
   // 加载其他配置
   getRemoteConfig()
-  getRemoteDatabase()
-  fetchGithubStars() // Fetch GitHub stars on mount
-  // 预加载任务数据，确保任务中心打开时有内容
-  taskerStore.loadTasks()
+  if (userStore.isAdmin) {
+    getRemoteDatabase()
+    // 预加载任务数据，确保任务中心打开时有内容
+    taskerStore.loadTasks()
+  }
+  // 预加载智能体数据（普通用户导航依赖 defaultAgent）
+  if (!agentStore.isInitialized) {
+    try {
+      await agentStore.initialize()
+    } catch (error) {
+      console.error('初始化智能体 store 失败:', error)
+    }
+  }
 })
 
 // 打印当前页面的路由信息，使用 vue3 的 setup composition API
@@ -86,43 +80,85 @@ console.log(route)
 
 const activeTaskCount = computed(() => activeCountRef.value || 0)
 
-// 下面是导航菜单部分，添加智能体项
-const mainList = [
-  {
-    name: '智能体',
-    path: '/agent',
-    icon: Bot,
-    activeIcon: Bot
-  },
-  {
-    name: '图谱',
-    path: '/graph',
-    icon: Waypoints,
-    activeIcon: Waypoints
-  },
-  {
-    name: '知识库',
-    path: '/database',
-    icon: LibraryBig,
-    activeIcon: LibraryBig
-  },
-  {
-    name: 'Dashboard',
-    path: '/dashboard',
-    icon: BarChart3,
-    activeIcon: BarChart3
-  },
-  {
-    name: '定时任务',
-    path: '/time',
-    icon: Clock,
-    activeIcon: Clock
+// 导航菜单
+const mainList = computed(() => {
+  if (userStore.isAdmin) {
+    return [
+      {
+        name: '智能体',
+        path: '/agent',
+        icon: Bot,
+        activeIcon: Bot
+      },
+      {
+        name: '图谱',
+        path: '/graph',
+        icon: Waypoints,
+        activeIcon: Waypoints
+      },
+      {
+        name: '知识库',
+        path: '/database',
+        icon: LibraryBig,
+        activeIcon: LibraryBig
+      },
+      {
+        name: 'Dashboard',
+        path: '/dashboard',
+        icon: BarChart3,
+        activeIcon: BarChart3
+      },
+      {
+        name: '系统设置',
+        path: '/settings',
+        icon: Settings,
+        activeIcon: Settings
+      },
+      {
+        name: '农资管理',
+        path: '/crop-admin',
+        icon: Package,
+        activeIcon: Package
+      },
+      {
+        name: '农作物字典',
+        path: '/crop-dict',
+        icon: Sprout,
+        activeIcon: Sprout
+      },
+      {
+        name: 'Webhook',
+        path: '/webhook',
+        icon: Webhook,
+        activeIcon: Webhook
+      }
+    ]
   }
-]
-
-// Provide settings modal methods to child components
-provide('settingsModal', {
-  openSettingsModal
+  // 普通用户导航
+  const defaultAgentId = agentStore.defaultAgent?.id
+  return [
+    {
+      name: '智能体',
+      path: defaultAgentId ? `/agent/${defaultAgentId}` : '/agent',
+      activePath: '/agent',
+      icon: Bot,
+      activeIcon: Bot
+    },
+    {
+      name: '个人中心',
+      path: '/profile',
+      activePath: '/profile',
+      icon: User,
+      activeIcon: User
+    },
+    {
+      name: '图谱',
+      path: '/graph',
+      activePath: '/graph',
+      icon: Waypoints,
+      activeIcon: Waypoints
+    }
+  ]
 })
 </script>
 
@@ -131,7 +167,7 @@ provide('settingsModal', {
     <div class="header" :class="{ 'top-bar': layoutSettings.useTopBar }">
       <div class="logo circle">
         <router-link to="/">
-          <img :src="infoStore.organization.avatar" />
+          <img :src="userStore.isAdmin ? infoStore.organization.avatar : (userStore.avatar || infoStore.organization.avatar)" />
         </router-link>
       </div>
       <div class="nav">
@@ -142,18 +178,19 @@ provide('settingsModal', {
           :to="item.path"
           v-show="!item.hidden"
           class="nav-item"
-          active-class="active"
+          :class="{ active: route.path.startsWith(item.activePath || item.path) }"
         >
           <a-tooltip placement="right">
             <template #title>{{ item.name }}</template>
             <component
               class="icon"
-              :is="route.path.startsWith(item.path) ? item.activeIcon : item.icon"
+              :is="route.path.startsWith(item.activePath || item.path) ? item.activeIcon : item.icon"
               size="22"
             />
           </a-tooltip>
         </RouterLink>
         <div
+          v-show="userStore.isAdmin"
           class="nav-item task-center"
           :class="{ active: isDrawerOpen }"
           @click="taskerStore.openDrawer()"
@@ -172,17 +209,6 @@ provide('settingsModal', {
         </div>
       </div>
       <div class="fill"></div>
-      <div class="github nav-item">
-        <a-tooltip placement="right">
-          <template #title>欢迎 Star</template>
-          <a href="https://github.com/xerrors/Yuxi-Know" target="_blank" class="github-link">
-            <GithubOutlined class="icon" />
-            <span v-if="githubStars > 0" class="github-stars">
-              <span class="star-count">{{ (githubStars / 1000).toFixed(1) }}k</span>
-            </span>
-          </a>
-        </a-tooltip>
-      </div>
       <!-- 用户信息组件 -->
       <div class="nav-item user-info">
         <UserInfoComponent />
@@ -209,7 +235,6 @@ provide('settingsModal', {
       <DebugComponent />
     </a-modal>
     <TaskCenterDrawer />
-    <SettingsModal v-model:visible="showSettingsModal" @close="() => (showSettingsModal = false)" />
   </div>
 </template>
 
@@ -235,6 +260,11 @@ div.header,
 #app-router-view {
   flex: 1 1 auto;
   overflow-y: auto;
+  background: #f8faf7;
+}
+
+:root.dark #app-router-view {
+  background: #0d0d0d;
 }
 
 .header {
@@ -246,7 +276,7 @@ div.header,
   background-color: var(--main-0);
   height: 100%;
   width: @header-width;
-  border-right: 1px solid var(--gray-100);
+  border-right: none;
 
   .nav {
     display: flex;

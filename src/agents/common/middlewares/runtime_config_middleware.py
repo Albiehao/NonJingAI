@@ -8,7 +8,6 @@ from langchain_core.messages import SystemMessage
 
 from src.agents.common import load_chat_model
 from src.agents.common.tool_registry import get_buildin_tools, get_kb_based_tools
-from src.services.mcp_service import get_enabled_mcp_tools
 from src.utils.datetime_utils import shanghai_now
 from src.utils.logging_config import logger
 
@@ -54,7 +53,6 @@ class RuntimeConfigMiddleware(AgentMiddleware):
         self.system_prompt_context_name = system_prompt_context_name
         self.tools_context_name = tools_context_name
         self.knowledges_context_name = knowledges_context_name
-        self.mcps_context_name = mcps_context_name
         # 存储覆盖配置
         self.enable_model_override = enable_model_override
         self.enable_system_prompt_override = enable_system_prompt_override
@@ -75,7 +73,7 @@ class RuntimeConfigMiddleware(AgentMiddleware):
         logger.debug(
             f"Initialized RuntimeConfigMiddleware with custom field names: model={model_context_name}, "
             f"system_prompt={system_prompt_context_name}, tools={tools_context_name}, "
-            f"knowledges={knowledges_context_name}, mcps={mcps_context_name}"
+            f"knowledges={knowledges_context_name}"
         )
 
     async def awrap_model_call(
@@ -86,7 +84,15 @@ class RuntimeConfigMiddleware(AgentMiddleware):
 
         # 1. 模型覆盖（可选）
         if self.enable_model_override:
-            model = load_chat_model(getattr(runtime_context, self.model_context_name, None))
+            model_spec = getattr(runtime_context, self.model_context_name, None)
+            thinking_enabled = getattr(runtime_context, "thinking_enabled", None)
+            thinking_effort = getattr(runtime_context, "thinking_effort", None)
+            logger.debug(f"RuntimeConfigMiddleware: model={model_spec}, thinking_enabled={thinking_enabled}, thinking_effort={thinking_effort}")
+            model = load_chat_model(
+                model_spec,
+                thinking_enabled=thinking_enabled,
+                thinking_effort=thinking_effort,
+            )
             overrides["model"] = model
 
         # 2. 工具覆盖（可选）
@@ -134,12 +140,5 @@ class RuntimeConfigMiddleware(AgentMiddleware):
         if knowledges:
             kb_tools = get_kb_based_tools(db_names=knowledges)
             selected_tools.extend(kb_tools)
-
-        # 3. MCP 工具（使用统一入口，自动过滤 disabled_tools）
-        mcps = getattr(context, self.mcps_context_name, None)
-        if mcps:
-            for server_name in mcps:
-                mcp_tools = await get_enabled_mcp_tools(server_name)
-                selected_tools.extend(mcp_tools)
 
         return selected_tools

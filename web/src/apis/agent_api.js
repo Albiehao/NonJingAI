@@ -178,6 +178,25 @@ export const agentApi = {
    * @param {Object} options - 可选参数（signal, headers等）
    * @returns {Promise} - 恢复响应流
    */
+  /**
+   * 生成并下载智能体报告 PDF（仅限 crop_agent）
+   * @param {string} agentId - 智能体ID
+   * @param {string} markdown - 报告 Markdown 内容
+   * @param {string} [filename] - 下载文件名（不含扩展名）
+   * @returns {Promise<Response>} - PDF 文件 Response（blob）
+   */
+  exportPdfReport: (agentId, markdown, filename) => {
+    return apiRequest(
+      `/api/chat/agent/${agentId}/report-pdf`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ markdown, filename: filename || undefined })
+      },
+      true,
+      'blob'
+    )
+  },
+
   resumeAgentChat: (agentId, data, options = {}) => {
     const { signal, headers: extraHeaders, ...restOptions } = options || {}
     const baseHeaders = {

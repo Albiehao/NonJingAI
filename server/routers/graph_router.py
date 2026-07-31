@@ -2,7 +2,7 @@ import traceback
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
-from server.utils.auth_middleware import get_admin_user
+from server.utils.auth_middleware import get_admin_user, get_required_user
 from src import graph_base, knowledge_base
 from src.knowledge.adapters.base import GraphAdapter
 from src.knowledge.adapters.factory import GraphAdapterFactory
@@ -50,7 +50,7 @@ def _get_capabilities_from_metadata(metadata) -> dict:
 
 
 @graph.get("/list")
-async def get_graphs(current_user: User = Depends(get_admin_user)):
+async def get_graphs(current_user: User = Depends(get_required_user)):
     """
     获取所有可用的知识图谱列表
 
@@ -119,7 +119,7 @@ async def get_subgraph(
     node_label: str = Query("*", description="节点标签或查询关键词"),
     max_depth: int = Query(2, description="最大深度", ge=1, le=5),
     max_nodes: int = Query(100, description="最大节点数", ge=1, le=1000),
-    current_user: User = Depends(get_admin_user),
+    current_user: User = Depends(get_required_user),
 ):
     """
     统一的子图查询接口
@@ -159,7 +159,7 @@ async def get_subgraph(
 
 @graph.get("/labels")
 async def get_graph_labels(
-    db_id: str = Query(..., description="知识图谱ID"), current_user: User = Depends(get_admin_user)
+    db_id: str = Query(..., description="知识图谱ID"), current_user: User = Depends(get_required_user)
 ):
     """
     获取图谱的所有标签
@@ -177,7 +177,7 @@ async def get_graph_labels(
 
 @graph.get("/stats")
 async def get_graph_stats(
-    db_id: str = Query(..., description="知识图谱ID"), current_user: User = Depends(get_admin_user)
+    db_id: str = Query(..., description="知识图谱ID"), current_user: User = Depends(get_required_user)
 ):
     """
     获取图谱统计信息
@@ -214,7 +214,7 @@ async def get_graph_stats(
 async def get_neo4j_nodes(
     kgdb_name: str = Query(..., description="知识图谱数据库名称"),
     num: int = Query(100, description="节点数量", ge=1, le=1000),
-    current_user: User = Depends(get_admin_user),
+    current_user: User = Depends(get_required_user),
 ):
     """(Deprecated) Use /graph/subgraph instead"""
     response = await get_subgraph(db_id=kgdb_name, node_label="*", max_nodes=num, current_user=current_user)
@@ -223,7 +223,7 @@ async def get_neo4j_nodes(
 
 @graph.get("/neo4j/node")
 async def get_neo4j_node(
-    entity_name: str = Query(..., description="实体名称"), current_user: User = Depends(get_admin_user)
+    entity_name: str = Query(..., description="实体名称"), current_user: User = Depends(get_required_user)
 ):
     """(Deprecated) Use /graph/subgraph instead"""
     # neo4j/node uses query_nodes(keyword=entity_name)
@@ -232,7 +232,7 @@ async def get_neo4j_node(
 
 
 @graph.get("/neo4j/info")
-async def get_neo4j_info(current_user: User = Depends(get_admin_user)):
+async def get_neo4j_info(current_user: User = Depends(get_required_user)):
     """获取Neo4j图数据库信息"""
     try:
         graph_info = graph_base.get_graph_info()

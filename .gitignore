@@ -66,3 +66,7 @@ docs/vibe
 .cursorrules
 
 /models
+/bash.exe.stackdump
+/images.tar
+/docker/images
+/docker-images

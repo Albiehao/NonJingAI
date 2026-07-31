@@ -783,7 +783,7 @@ defineExpose({
 
       &:hover {
         border-color: var(--main-300);
-        box-shadow: 0 2px 8px rgba(1, 97, 121, 0.08);
+        box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08);
       }
 
       &:last-child {
@@ -1072,7 +1072,7 @@ defineExpose({
 
   &:hover {
     border-color: var(--main-300);
-    box-shadow: 0 2px 8px rgba(1, 97, 121, 0.08);
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08);
   }
 
   .relationship-header {
@@ -1171,7 +1171,7 @@ defineExpose({
 
   &:hover {
     border-color: var(--main-300);
-    box-shadow: 0 2px 8px rgba(1, 97, 121, 0.08);
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.08);
   }
 
   .chunk-header {
