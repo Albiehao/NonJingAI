@@ -11,7 +11,12 @@ import {
   Settings,
   Sprout,
   User,
-  Webhook
+  Webhook,
+  ShoppingCart,
+  Home,
+  ShoppingBag,
+  MapPin,
+  ClipboardList
 } from 'lucide-vue-next'
 
 import { useConfigStore } from '@/stores/config'
@@ -131,6 +136,18 @@ const mainList = computed(() => {
         path: '/webhook',
         icon: Webhook,
         activeIcon: Webhook
+      },
+      {
+        name: '商城',
+        path: '/mall',
+        icon: ShoppingBag,
+        activeIcon: ShoppingBag,
+        children: [
+          { name: '商城首页', path: '/mall', icon: Home },
+          { name: '购物车', path: '/mall/cart', icon: ShoppingCart },
+          { name: '我的订单', path: '/mall/orders', icon: ClipboardList },
+          { name: '收货地址', path: '/mall/addresses', icon: MapPin }
+        ]
       }
     ]
   }
@@ -172,36 +189,75 @@ const mainList = computed(() => {
       </div>
       <div class="nav">
         <!-- 使用mainList渲染导航项 -->
-        <RouterLink
-          v-for="(item, index) in mainList"
-          :key="index"
-          :to="item.path"
-          v-show="!item.hidden"
-          class="nav-item"
-          :class="{ active: route.path.startsWith(item.activePath || item.path) }"
-        >
-          <a-tooltip placement="right">
-            <template #title>{{ item.name }}</template>
-            <component
-              class="icon"
-              :is="route.path.startsWith(item.activePath || item.path) ? item.activeIcon : item.icon"
-              size="22"
-            />
-          </a-tooltip>
-        </RouterLink>
+        <template v-for="(item, index) in mainList" :key="index">
+          <!-- 有子菜单的项（如商城）：使用 popover -->
+          <a-popover
+              v-if="item.children && item.children.length > 0"
+              trigger="click"
+              placement="right"
+              overlay-class-name="mall-menu-popover"
+          >
+            <div
+                class="nav-item"
+                :class="{ active: route.path.startsWith(item.activePath || item.path) }"
+            >
+              <a-tooltip placement="right">
+                <template #title>{{ item.name }}</template>
+                <component
+                    class="icon"
+                    :is="route.path.startsWith(item.activePath || item.path) ? item.activeIcon : item.icon"
+                    size="22"
+                />
+              </a-tooltip>
+            </div>
+            <template #content>
+              <div class="mall-submenu">
+                <RouterLink
+                    v-for="child in item.children"
+                    :key="child.path"
+                    :to="child.path"
+                    class="mall-submenu-item"
+                    :class="{ active: route.path === child.path || (child.path !== item.path && route.path.startsWith(child.path)) }"
+                >
+                  <component :is="child.icon" size="16" />
+                  <span>{{ child.name }}</span>
+                </RouterLink>
+              </div>
+            </template>
+          </a-popover>
+
+          <!-- 普通导航项：直接跳转 -->
+          <RouterLink
+              v-else
+              :to="item.path"
+              v-show="!item.hidden"
+              class="nav-item"
+              :class="{ active: route.path.startsWith(item.activePath || item.path) }"
+          >
+            <a-tooltip placement="right">
+              <template #title>{{ item.name }}</template>
+              <component
+                  class="icon"
+                  :is="route.path.startsWith(item.activePath || item.path) ? item.activeIcon : item.icon"
+                  size="22"
+              />
+            </a-tooltip>
+          </RouterLink>
+        </template>
+
         <div
-          v-show="userStore.isAdmin"
-          class="nav-item task-center"
-          :class="{ active: isDrawerOpen }"
-          @click="taskerStore.openDrawer()"
+            v-show="userStore.isAdmin"
+            class="nav-item task-center"
+            :class="{ active: isDrawerOpen }"
+            @click="taskerStore.openDrawer()"
         >
           <a-tooltip placement="right">
             <template #title>任务中心</template>
             <a-badge
-              :count="activeTaskCount"
-              :overflow-count="99"
-              class="task-center-badge"
-              size="small"
+                :count="activeTaskCount"
+                :overflow-count="99"
+                class="task-center-badge"
+                size="small"
             >
               <CircleCheck class="icon" size="22" />
             </a-badge>
@@ -223,14 +279,14 @@ const mainList = computed(() => {
 
     <!-- Debug Modal -->
     <a-modal
-      v-model:open="showDebugModal"
-      title="调试面板"
-      width="90%"
-      :footer="null"
-      @cancel="handleDebugModalClose"
-      :maskClosable="true"
-      :destroyOnClose="true"
-      class="debug-modal"
+        v-model:open="showDebugModal"
+        title="调试面板"
+        width="90%"
+        :footer="null"
+        @cancel="handleDebugModalClose"
+        :maskClosable="true"
+        :destroyOnClose="true"
+        class="debug-modal"
     >
       <DebugComponent />
     </a-modal>
@@ -539,6 +595,49 @@ div.header,
         }
       }
     }
+  }
+}
+</style>
+
+<!-- 商城弹出菜单样式（不能 scoped，因为 popover 在 body 层渲染） -->
+<style lang="less">.mall-menu-popover {
+  .ant-popover-inner {
+    padding: 4px;
+    border-radius: 8px;
+  }
+  .ant-popover-inner-content {
+    padding: 0;
+  }
+}
+
+.mall-submenu {
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  gap: 2px;
+}
+
+.mall-submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: var(--gray-1000, #333);
+  text-decoration: none;
+  font-size: 13px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--main-40, #f0f0f0);
+    color: var(--main-color, #1677ff);
+  }
+
+  &.active {
+    background-color: var(--main-40, #e6f4ff);
+    color: var(--main-color, #1677ff);
+    font-weight: 600;
   }
 }
 </style>
