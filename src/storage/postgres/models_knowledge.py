@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from src.storage.postgres.models_business import Base
+from src.storage.postgres.base import Base
 from src.utils.datetime_utils import utc_now_naive
 
 JSON_VALUE = JSON().with_variant(JSONB, "postgresql")
