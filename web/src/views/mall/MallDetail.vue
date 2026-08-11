@@ -80,10 +80,15 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { ShoppingCart as ShoppingCartIcon } from 'lucide-vue-next'
-import { getProductById, addToCart } from '@/apis/mall'
+import { getProductById } from '@/apis/mall'
+import { useCartStore } from '@/stores/cart'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
+const cartStore = useCartStore()
+const userStore = useUserStore()
+
 
 const product = ref(null)
 const loading = ref(false)
@@ -111,39 +116,33 @@ const loadProduct = async () => {
   }
 }
 
-const handleAddCart = async () => {
-  cartLoading.value = true
-  try {
-    await addToCart(product.value.id, quantity.value)
-    message.success('已加入购物车')
-  } catch (e) {
-    if (e.message === '请先登录') {
-      message.warning('请先登录')
-      router.push('/login')
-    } else {
-      message.error(e.message || '加入购物车失败')
-    }
-  } finally {
-    cartLoading.value = false
+const handleAddCart = () => {
+  if (!userStore.isLoggedIn) {
+    message.warning('请先登录')
+    router.push('/login')
+    return
   }
+  cartStore.addToCart(product.value.id, quantity.value, {
+    productName: product.value.productName,
+    mainImage: product.value.mainImage,
+    price: product.value.price
+  })
+  message.success('已加入购物车')
 }
 
-const handleBuyNow = async () => {
-  buyLoading.value = true
-  try {
-    const res = await addToCart(product.value.id, 1)
-    const cartItemId = res?.data?.id || res?.data?.cartItemId || ''
-    router.push({ path: '/mall/checkout', query: { cartItemId } })
-  } catch (e) {
-    if (e.message === '请先登录') {
-      message.warning('请先登录')
-      router.push('/login')
-    } else {
-      message.error(e.message || '购买失败')
-    }
-  } finally {
-    buyLoading.value = false
+const handleBuyNow = () => {
+  if (!userStore.isLoggedIn) {
+    message.warning('请先登录')
+    router.push('/login')
+    return
   }
+  cartStore.addToCart(product.value.id, 1, {
+    productName: product.value.productName,
+    mainImage: product.value.mainImage,
+    price: product.value.price
+  })
+  const cartItem = cartStore.items.find((i) => i.productId === product.value.id)
+  router.push({ path: '/mall/checkout', query: { cartItemId: cartItem?.id || '' } })
 }
 
 watch(() => route.params.id, () => {

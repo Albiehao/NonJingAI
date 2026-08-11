@@ -265,3 +265,87 @@ export const mockProductDetails = [
         purchaseLinks: 'https://example.com/product10'
     }
 ]
+
+
+export const mockCartItems = [
+    {
+        id: 1,
+        productId: 1,
+        productName: '多菌灵可湿性粉剂',
+        mainImage: 'https://picsum.photos/seed/product1/400/400',
+        price: 49.90,
+        quantity: 2
+    },
+    {
+        id: 2,
+        productId: 2,
+        productName: '吡虫啉乳油',
+        mainImage: 'https://picsum.photos/seed/product2/400/400',
+        price: 35.50,
+        quantity: 1
+    },
+    {
+        id: 3,
+        productId: 3,
+        productName: '草甘膦异丙胺盐水剂',
+        mainImage: 'https://picsum.photos/seed/product3/400/400',
+        price: 28.00,
+        quantity: 3
+    },
+    {
+        id: 4,
+        productId: 4,
+        productName: '复合肥（15-15-15）',
+        mainImage: 'https://picsum.photos/seed/product4/400/400',
+        price: 120.00,
+        quantity: 1
+    },
+    {
+        id: 5,
+        productId: 5,
+        productName: '代森锰锌可湿性粉剂',
+        mainImage: 'https://picsum.photos/seed/product5/400/400',
+        price: 42.00,
+        quantity: 2
+    },
+    {
+        id: 6,
+        productId: 6,
+        productName: '高效氯氟氰菊酯乳油',
+        mainImage: 'https://picsum.photos/seed/product6/400/400',
+        price: 55.80,
+        quantity: 1
+    },
+    {
+        id: 7,
+        productId: 7,
+        productName: '2,4-D丁酯乳油',
+        mainImage: 'https://picsum.photos/seed/product7/400/400',
+        price: 18.50,
+        quantity: 4
+    },
+    {
+        id: 8,
+        productId: 8,
+        productName: '尿素（含缩二脲≤1%）',
+        mainImage: 'https://picsum.photos/seed/product8/400/400',
+        price: 95.00,
+        quantity: 2
+    },
+    {
+        id: 9,
+        productId: 9,
+        productName: '甲基托布津可湿性粉剂',
+        mainImage: 'https://picsum.photos/seed/product9/400/400',
+        price: 38.00,
+        quantity: 1
+    },
+    {
+        id: 10,
+        productId: 10,
+        productName: '阿维菌素乳油',
+        mainImage: 'https://picsum.photos/seed/product10/400/400',
+        price: 68.00,
+        quantity: 2
+    }
+]
