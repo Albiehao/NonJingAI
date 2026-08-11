@@ -13,6 +13,9 @@ from server.routers.task_router import tasks
 from server.routers.webhook_router import webhook
 from server.routers.wechat_router import wechat_router
 from server.routers.storage_router import storage_router
+from .cart_router import router as cart_router
+from .orders_router import router as orders_router
+from .payment_router import router as payment_router
 try:
     from server.routers.email_router import email_router
 except ImportError:
@@ -37,5 +40,8 @@ router.include_router(tasks)  # /api/tasks/*
 router.include_router(webhook)  # /api/webhook/*
 router.include_router(wechat_router)  # /api/wechat/*
 router.include_router(storage_router)  # /api/storage/*
+router.include_router(cart_router)
+router.include_router(orders_router)
+router.include_router(payment_router)
 if email_router is not None:
     router.include_router(email_router)  # /api/email/*
