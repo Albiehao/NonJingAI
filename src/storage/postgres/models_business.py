@@ -15,13 +15,10 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+from src.storage.postgres.base import Base
 from src.utils.datetime_utils import format_utc_datetime, utc_now_naive
-
-Base = declarative_base()
-
 
 class User(Base):
     """用户模型"""
