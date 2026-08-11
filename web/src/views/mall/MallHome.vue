@@ -58,11 +58,16 @@ import {
   getCategories,
   getAllProducts,
   getProductsByCategoryId,
-  searchProducts,
-  addToCart
+  searchProducts
 } from '@/apis/mall'
+import { useCartStore } from '@/stores/cart'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const cartStore = useCartStore()
+const userStore = useUserStore()
+
+
 
 const categories = ref([])
 const products = ref([])
@@ -130,19 +135,20 @@ const handleSearch = async () => {
   }
 }
 
-const handleAddCart = async (item) => {
-  try {
-    await addToCart(item.id, 1)
-    message.success('已加入购物车')
-  } catch (e) {
-    if (e.message === '请先登录') {
-      message.warning('请先登录')
-      router.push('/login')
-    } else {
-      message.error(e.message || '加入购物车失败')
-    }
+const handleAddCart = (item) => {
+  if (!userStore.isLoggedIn) {
+    message.warning('请先登录')
+    router.push('/login')
+    return
   }
+  cartStore.addToCart(item.id, 1, {
+    productName: item.productName,
+    mainImage: item.mainImage,
+    price: item.price
+  })
+  message.success('已加入购物车')
 }
+
 
 const handleBuyNow = (item) => {
   router.push(`/mall/${item.id}`)
