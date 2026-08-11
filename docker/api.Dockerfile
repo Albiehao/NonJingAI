@@ -15,7 +15,7 @@ ENV TZ=Asia/Shanghai \
     UV_COMPILE_BYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive
 
-RUN npm install -g npm@latest && npm cache clean --force
+RUN npm install -g npm@10 && npm cache clean --force
 
 # 设置代理和时区，更换镜像源，安装系统依赖 - 合并为一个RUN减少层数
 RUN set -ex \
