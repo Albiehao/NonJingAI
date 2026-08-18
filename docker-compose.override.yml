@@ -1,0 +1,57 @@
+services:
+  api:
+    environment:
+      - MQTT_GATEWAY_URL=http://mqtt-gateway:8090
+      - MQTT_GATEWAY_API_KEY=${MQTT_GATEWAY_API_KEY:-change-me}
+    depends_on:
+      mqtt-gateway:
+        condition: service_healthy
+
+  mqtt-gateway:
+    build:
+      context: ./mqtt-gateway
+      dockerfile: Dockerfile
+    container_name: qianxun-mqtt-gateway
+    ports:
+      - "8090:8090"
+    environment:
+      - MQTT_GATEWAY_API_KEY=${MQTT_GATEWAY_API_KEY:-change-me}
+      - EMQX_AUTH_SHARED_SECRET=emqx-internal
+      - MQTT_GATEWAY_DB=/data/mqtt-gateway.db
+    volumes:
+      - ./mqtt-gateway/data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  emqx:
+    image: emqx:5.8.8
+    container_name: qianxun-emqx
+    ports:
+      - "1883:1883"
+      - "18083:18083"
+    environment:
+      - EMQX_DASHBOARD__DEFAULT_USERNAME=${EMQX_DASHBOARD_USERNAME:-admin}
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=${EMQX_DASHBOARD_PASSWORD:-public}
+    volumes:
+      - ./mqtt-gateway/emqx/base.hocon:/opt/emqx/etc/base.hocon:ro
+      - ./docker/volumes/emqx/data:/opt/emqx/data
+      - ./docker/volumes/emqx/log:/opt/emqx/log
+    depends_on:
+      mqtt-gateway:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "emqx ctl status >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
