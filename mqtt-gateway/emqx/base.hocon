@@ -1,0 +1,41 @@
+listeners.tcp.default {
+  bind = "0.0.0.0:1883"
+  max_connections = 100000
+}
+
+# MQTT CONNECT authentication. EMQX forwards the credentials to the dedicated
+# mqtt-gateway service. The gateway requires Username == ClientId == SN.
+authentication = [
+  {
+    mechanism = password_based
+    backend = http
+    method = post
+    url = "http://mqtt-gateway:8090/emqx/auth"
+    headers {
+      "Content-Type" = "application/json"
+      "X-EMQX-Auth" = "${EMQX_AUTH_SHARED_SECRET}"
+    }
+    body {
+      username = "${username}"
+      password = "${password}"
+      clientid = "${clientid}"
+    }
+    request_timeout = "5s"
+    connect_timeout = "5s"
+    pool_size = 8
+  }
+]
+
+# ACL rules returned from HTTP authentication are evaluated first. If a topic
+# does not match those per-device rules, deny it instead of falling back to a
+# permissive default authorizer.
+authorization {
+  no_match = deny
+  deny_action = ignore
+  sources = []
+}
+
+log.console {
+  enable = true
+  level = warning
+}
