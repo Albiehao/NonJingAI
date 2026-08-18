@@ -1,0 +1,21 @@
+services:
+  mqtt-gateway:
+    build:
+      context: ../mqtt-gateway
+      dockerfile: Dockerfile
+    image: qianxun-mqtt-gateway:0.1.0
+    container_name: qianxun-mqtt-gateway
+    ports:
+      - "8090:8090"
+    environment:
+      MQTT_GATEWAY_API_KEY: ${MQTT_GATEWAY_API_KEY:-change-me}
+      EMQX_AUTH_SHARED_SECRET: ${EMQX_AUTH_SHARED_SECRET:-emqx-internal}
+    volumes:
+      - ../docker/volumes/mqtt-gateway:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    external: false
