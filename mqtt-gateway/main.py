@@ -14,6 +14,7 @@ import base64
 import hashlib
 import hmac
 import os
+import re
 import secrets
 import sqlite3
 from contextlib import closing
@@ -28,6 +29,7 @@ API_KEY = os.getenv("MQTT_GATEWAY_API_KEY", "change-me")
 EMQX_AUTH_SHARED_SECRET = os.getenv("EMQX_AUTH_SHARED_SECRET", "emqx-internal")
 DB_PATH = Path(os.getenv("MQTT_GATEWAY_DB", "/data/mqtt-gateway.db"))
 PBKDF2_ITERATIONS = 210_000
+SN_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 app = FastAPI(title=APP_NAME, version="0.2.0")
 
@@ -70,6 +72,11 @@ def _init_db() -> None:
         conn.commit()
 
 
+def _valid_sn(sn: str) -> bool:
+    # Topic ACLs interpolate the client ID, so SN must never contain '/', '+' or '#'.
+    return bool(SN_PATTERN.fullmatch(sn))
+
+
 def _hash_password(password: str, salt: bytes) -> bytes:
     return hashlib.pbkdf2_hmac(
         "sha256",
@@ -93,6 +100,9 @@ def _verify_password(password: str, salt: str, password_hash: str) -> bool:
 
 
 def _credential_valid(sn: str, password: str) -> bool:
+    if not _valid_sn(sn):
+        return False
+
     with closing(_connect()) as conn:
         row = conn.execute(
             "SELECT salt, password_hash FROM mqtt_device_credentials WHERE sn = ?",
@@ -140,8 +150,11 @@ def bind_device(body: DeviceCredential) -> dict:
     """
 
     sn = body.sn.strip()
-    if not sn:
-        raise HTTPException(status_code=400, detail="SN cannot be empty")
+    if not _valid_sn(sn):
+        raise HTTPException(
+            status_code=400,
+            detail="SN must contain only letters, numbers, '.', '_' or '-'",
+        )
 
     with closing(_connect()) as conn:
         row = conn.execute(
@@ -199,8 +212,13 @@ def emqx_authenticate(body: EmqxAuthRequest) -> dict:
     clientid = (body.clientid or "").strip()
     password = body.password or ""
 
-    # The project intentionally uses SN for both Username and ClientId.
-    if not username or not clientid or username != clientid or not password:
+    if (
+        not username
+        or not clientid
+        or username != clientid
+        or not password
+        or not _valid_sn(username)
+    ):
         return {"result": "deny", "is_superuser": False}
 
     if not _credential_valid(username, password):
