@@ -16,7 +16,8 @@ import {
   Home,
   ShoppingBag,
   MapPin,
-  ClipboardList
+  ClipboardList,
+  RadioTower
 } from 'lucide-vue-next'
 
 import { useConfigStore } from '@/stores/config'
@@ -40,13 +41,11 @@ const { activeCount: activeCountRef, isDrawerOpen } = storeToRefs(taskerStore)
 
 const layoutSettings = reactive({
   showDebug: false,
-  useTopBar: false // 是否使用顶栏
+  useTopBar: false
 })
 
-// Add state for debug modal
 const showDebugModal = ref(false)
 
-// Handle debug modal close
 const handleDebugModalClose = () => {
   showDebugModal.value = false
 }
@@ -60,16 +59,12 @@ const getRemoteDatabase = () => {
 }
 
 onMounted(async () => {
-  // 加载信息配置
   await infoStore.loadInfoConfig()
-  // 加载其他配置
   getRemoteConfig()
   if (userStore.isAdmin) {
     getRemoteDatabase()
-    // 预加载任务数据，确保任务中心打开时有内容
     taskerStore.loadTasks()
   }
-  // 预加载智能体数据（普通用户导航依赖 defaultAgent）
   if (!agentStore.isInitialized) {
     try {
       await agentStore.initialize()
@@ -79,13 +74,17 @@ onMounted(async () => {
   }
 })
 
-// 打印当前页面的路由信息，使用 vue3 的 setup composition API
 const route = useRoute()
-console.log(route)
-
 const activeTaskCount = computed(() => activeCountRef.value || 0)
 
-// 导航菜单
+const deviceNavItem = {
+  name: 'MQTT设备',
+  path: '/devices',
+  activePath: '/devices',
+  icon: RadioTower,
+  activeIcon: RadioTower
+}
+
 const mainList = computed(() => {
   if (userStore.isAdmin) {
     return [
@@ -95,6 +94,7 @@ const mainList = computed(() => {
         icon: Bot,
         activeIcon: Bot
       },
+      deviceNavItem,
       {
         name: '图谱',
         path: '/graph',
@@ -151,7 +151,7 @@ const mainList = computed(() => {
       }
     ]
   }
-  // 普通用户导航
+
   const defaultAgentId = agentStore.defaultAgent?.id
   return [
     {
@@ -161,6 +161,7 @@ const mainList = computed(() => {
       icon: Bot,
       activeIcon: Bot
     },
+    deviceNavItem,
     {
       name: '个人中心',
       path: '/profile',
@@ -188,9 +189,7 @@ const mainList = computed(() => {
         </router-link>
       </div>
       <div class="nav">
-        <!-- 使用mainList渲染导航项 -->
         <template v-for="(item, index) in mainList" :key="index">
-          <!-- 有子菜单的项（如商城）：使用 popover -->
           <a-popover
               v-if="item.children && item.children.length > 0"
               trigger="click"
@@ -226,7 +225,6 @@ const mainList = computed(() => {
             </template>
           </a-popover>
 
-          <!-- 普通导航项：直接跳转 -->
           <RouterLink
               v-else
               :to="item.path"
@@ -265,7 +263,6 @@ const mainList = computed(() => {
         </div>
       </div>
       <div class="fill"></div>
-      <!-- 用户信息组件 -->
       <div class="nav-item user-info">
         <UserInfoComponent />
       </div>
@@ -277,7 +274,6 @@ const mainList = computed(() => {
       <component :is="Component" v-else />
     </router-view>
 
-    <!-- Debug Modal -->
     <a-modal
         v-model:open="showDebugModal"
         title="调试面板"
@@ -295,7 +291,6 @@ const mainList = computed(() => {
 </template>
 
 <style lang="less" scoped>
-// Less 变量定义
 @header-width: 50px;
 
 .app-layout {
@@ -340,7 +335,6 @@ div.header,
     justify-content: center;
     align-items: center;
     position: relative;
-    // height: 45px;
     gap: 16px;
   }
 
@@ -356,7 +350,7 @@ div.header,
     img {
       width: 100%;
       height: 100%;
-      border-radius: 4px; // 50% for circle
+      border-radius: 4px;
     }
 
     & > a {
@@ -527,7 +521,7 @@ div.header,
 
     .icon {
       margin-right: 8px;
-      font-size: 15px; // 减小图标大小
+      font-size: 15px;
       border: none;
       outline: none;
 
@@ -599,7 +593,6 @@ div.header,
 }
 </style>
 
-<!-- 商城弹出菜单样式（不能 scoped，因为 popover 在 body 层渲染） -->
 <style lang="less">.mall-menu-popover {
   .ant-popover-inner {
     padding: 4px;
