@@ -13,9 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from src.storage.postgres.base import Base
 
 
 class CropCategory(Base):

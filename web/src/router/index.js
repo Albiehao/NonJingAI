@@ -185,6 +185,61 @@ const router = createRouter({
       ]
     },
     {
+      path: '/mall',
+      component: AppLayout,
+      children: [
+        {
+          path: '',
+          name: 'MallHome',
+          component: () => import('../views/mall/MallHome.vue'),
+          meta: { keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'cart',
+          name: 'MallCart',
+          component: () => import('../views/mall/Cart.vue'),
+          meta: { keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'checkout',
+          name: 'MallCheckout',
+          component: () => import('../views/mall/Checkout.vue'),
+          meta: { keepAlive: false, requiresAuth: true }
+        },
+        {
+          path: 'orders',
+          name: 'MallOrders',
+          component: () => import('../views/mall/OrderList.vue'),
+          meta: { keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: 'orders/:id',
+          name: 'MallOrderDetail',
+          component: () => import('../views/mall/OrderDetail.vue'),
+          meta: { keepAlive: false, requiresAuth: true }
+        },
+        {
+          path: 'payment/:orderId',
+          name: 'MallPayment',
+          component: () => import('../views/mall/Payment.vue'),
+          meta: { keepAlive: false, requiresAuth: true }
+        },
+        {
+          path: 'addresses',
+          name: 'MallAddresses',
+          component: () => import('../views/mall/AddressManage.vue'),
+          meta: { keepAlive: true, requiresAuth: true }
+        },
+        {
+          path: ':id',
+          name: 'MallDetail',
+          component: () => import('../views/mall/MallDetail.vue'),
+          meta: { keepAlive: false, requiresAuth: true }
+        }
+      ]
+    },
+
+    {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
       component: () => import('../views/EmptyView.vue'),

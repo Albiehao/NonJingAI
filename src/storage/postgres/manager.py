@@ -6,24 +6,20 @@ from contextlib import asynccontextmanager
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
-
 from server.utils.singleton import SingletonMeta
 from src.storage.postgres.models_business import Base as BusinessBase
 from src.storage.postgres.models_crop import Base as CropBase
 from src.storage.postgres.models_knowledge import Base as KnowledgeBase
+from src.storage.postgres.models_order import Base as OrderBase
+
+from src.storage.postgres.models_order import (
+    CropCart,
+    CropOrder,
+    CropOrderItem,
+    CropPaymentRecord,
+)
+
 from src.utils import logger
-
-# 合并两个 Base
-CombinedBase = declarative_base()
-
-# 继承所有表
-for module in [KnowledgeBase, BusinessBase, CropBase]:
-    for table_name in dir(module):
-        table = getattr(module, table_name)
-        if isinstance(table, type) and hasattr(table, "__tablename__"):
-            setattr(CombinedBase, table_name, table)
-
 
 class PostgresManager(metaclass=SingletonMeta):
     """PostgreSQL 数据库管理器 - 支持知识库和业务数据"""
@@ -78,12 +74,26 @@ class PostgresManager(metaclass=SingletonMeta):
             raise RuntimeError("PostgreSQL manager not initialized. Please check configuration.")
 
     async def create_tables(self):
-        """创建所有表（知识库和业务表）"""
+        """创建所有表"""
+
         self._check_initialized()
+
         async with self.async_engine.begin() as conn:
-            await conn.run_sync(KnowledgeBase.metadata.create_all)
-            await conn.run_sync(BusinessBase.metadata.create_all)
-        logger.info("PostgreSQL tables created/checked (knowledge + business)")
+            await conn.run_sync(
+                KnowledgeBase.metadata.create_all
+            )
+
+            await conn.run_sync(
+                BusinessBase.metadata.create_all
+            )
+
+            await conn.run_sync(
+                CropBase.metadata.create_all
+            )
+
+        logger.info(
+            "PostgreSQL tables created/checked"
+        )
 
     async def create_business_tables(self):
         """创建所有业务数据表"""
@@ -91,7 +101,7 @@ class PostgresManager(metaclass=SingletonMeta):
         async with self.async_engine.begin() as conn:
             await conn.run_sync(BusinessBase.metadata.create_all)
             await conn.run_sync(CropBase.metadata.create_all)
-
+            await conn.run_sync(OrderBase.metadata.create_all)
         # 业务表 schema 迁移
         async with self.async_engine.begin() as conn:
             # 检查 users 表是否还有旧地址列（避免重复迁移报错）
