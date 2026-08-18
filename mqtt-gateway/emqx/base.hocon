@@ -13,7 +13,7 @@ authentication = [
     url = "http://mqtt-gateway:8090/emqx/auth"
     headers {
       "Content-Type" = "application/json"
-      "X-EMQX-Auth" = "${EMQX_AUTH_SHARED_SECRET}"
+      "X-EMQX-Auth" = "emqx-internal"
     }
     body {
       username = "${username}"
@@ -26,9 +26,6 @@ authentication = [
   }
 ]
 
-# ACL rules returned from HTTP authentication are evaluated first. If a topic
-# does not match those per-device rules, deny it instead of falling back to a
-# permissive default authorizer.
 authorization {
   no_match = deny
   deny_action = ignore
