@@ -1,7 +1,11 @@
 """Standalone MQTT credential gateway.
 
-Phase 1 only manages device credentials. It intentionally does not process MQTT
-telemetry, commands, topics, or business payloads yet.
+This service owns MQTT device credentials and exposes:
+- manufacturing/admin credential registration
+- credential verification for the main business API
+- EMQX HTTP authentication for MQTT CONNECT
+
+It intentionally does not process telemetry or business payloads yet.
 """
 
 from __future__ import annotations
@@ -21,10 +25,11 @@ from pydantic import BaseModel, Field
 
 APP_NAME = "Qianxun MQTT Gateway"
 API_KEY = os.getenv("MQTT_GATEWAY_API_KEY", "change-me")
+EMQX_AUTH_SHARED_SECRET = os.getenv("EMQX_AUTH_SHARED_SECRET", "emqx-internal")
 DB_PATH = Path(os.getenv("MQTT_GATEWAY_DB", "/data/mqtt-gateway.db"))
 PBKDF2_ITERATIONS = 210_000
 
-app = FastAPI(title=APP_NAME, version="0.1.0")
+app = FastAPI(title=APP_NAME, version="0.2.0")
 
 
 class DeviceCredential(BaseModel):
@@ -35,6 +40,12 @@ class DeviceCredential(BaseModel):
 class VerifyResult(BaseModel):
     sn: str
     valid: bool
+
+
+class EmqxAuthRequest(BaseModel):
+    username: str | None = None
+    password: str | None = None
+    clientid: str | None = None
 
 
 def _connect() -> sqlite3.Connection:
@@ -81,11 +92,32 @@ def _verify_password(password: str, salt: str, password_hash: str) -> bool:
     return hmac.compare_digest(calculated, _decode(password_hash))
 
 
+def _credential_valid(sn: str, password: str) -> bool:
+    with closing(_connect()) as conn:
+        row = conn.execute(
+            "SELECT salt, password_hash FROM mqtt_device_credentials WHERE sn = ?",
+            (sn,),
+        ).fetchone()
+
+    if not row:
+        return False
+
+    return _verify_password(password, row["salt"], row["password_hash"])
+
+
 def _require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     if not x_api_key or not hmac.compare_digest(x_api_key, API_KEY):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid gateway api key",
+        )
+
+
+def _require_emqx_secret(x_emqx_auth: str | None = Header(default=None)) -> None:
+    if not x_emqx_auth or not hmac.compare_digest(x_emqx_auth, EMQX_AUTH_SHARED_SECRET):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid EMQX authentication secret",
         )
 
 
@@ -101,10 +133,10 @@ def health() -> dict:
 
 @app.post("/api/v1/devices/bind", dependencies=[Depends(_require_api_key)])
 def bind_device(body: DeviceCredential) -> dict:
-    """Register a SN/password pair used later by MQTT CONNECT authentication.
+    """Register a SN/password pair used by MQTT CONNECT authentication.
 
-    Repeating the same SN/password is idempotent. Reusing an existing SN with a
-    different password is rejected.
+    This endpoint is intended for manufacturing/admin provisioning, not for the
+    end-user binding page. Repeating the same SN/password is idempotent.
     """
 
     sn = body.sn.strip()
@@ -148,17 +180,58 @@ def bind_device(body: DeviceCredential) -> dict:
 )
 def verify_device(body: DeviceCredential) -> VerifyResult:
     sn = body.sn.strip()
+    return VerifyResult(sn=sn, valid=_credential_valid(sn, body.password))
 
-    with closing(_connect()) as conn:
-        row = conn.execute(
-            "SELECT salt, password_hash FROM mqtt_device_credentials WHERE sn = ?",
-            (sn,),
-        ).fetchone()
 
-    if not row:
-        return VerifyResult(sn=sn, valid=False)
+@app.post("/emqx/auth", dependencies=[Depends(_require_emqx_secret)])
+def emqx_authenticate(body: EmqxAuthRequest) -> dict:
+    """Authenticate an MQTT CONNECT request from EMQX.
 
-    return VerifyResult(
-        sn=sn,
-        valid=_verify_password(body.password, row["salt"], row["password_hash"]),
-    )
+    Identity contract:
+        Username == ClientId == device SN
+        Password == device password
+
+    The response also presets topic ACLs so one device cannot impersonate
+    another device after authenticating.
+    """
+
+    username = (body.username or "").strip()
+    clientid = (body.clientid or "").strip()
+    password = body.password or ""
+
+    # The project intentionally uses SN for both Username and ClientId.
+    if not username or not clientid or username != clientid or not password:
+        return {"result": "deny", "is_superuser": False}
+
+    if not _credential_valid(username, password):
+        return {"result": "deny", "is_superuser": False}
+
+    return {
+        "result": "allow",
+        "is_superuser": False,
+        "client_attrs": {
+            "sn": username,
+        },
+        "acl": [
+            {
+                "permission": "allow",
+                "action": "publish",
+                "topic": "devices/${clientid}/up",
+            },
+            {
+                "permission": "allow",
+                "action": "publish",
+                "topic": "devices/${clientid}/status",
+            },
+            {
+                "permission": "allow",
+                "action": "publish",
+                "topic": "devices/${clientid}/ack",
+            },
+            {
+                "permission": "allow",
+                "action": "subscribe",
+                "topic": "devices/${clientid}/down",
+            },
+        ],
+    }
