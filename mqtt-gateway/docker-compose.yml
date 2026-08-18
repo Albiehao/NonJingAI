@@ -1,0 +1,14 @@
+services:
+  mqtt-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qianxun-mqtt-gateway
+    ports:
+      - "8090:8090"
+    environment:
+      - MQTT_GATEWAY_API_KEY=${MQTT_GATEWAY_API_KEY:-change-me}
+      - MQTT_GATEWAY_DB=/data/mqtt-gateway.db
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
