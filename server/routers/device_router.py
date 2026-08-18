@@ -14,7 +14,8 @@ from src.storage.postgres.models_mqtt import MqttDeviceBinding
 
 router = APIRouter(prefix="/devices", tags=["MQTT设备"])
 
-MQTT_GATEWAY_URL = os.getenv("MQTT_GATEWAY_URL", "http://mqtt-gateway:8090").rstrip("/")
+# MQTT Gateway 独立部署；生产环境可通过环境变量覆盖。
+MQTT_GATEWAY_URL = os.getenv("MQTT_GATEWAY_URL", "http://host.docker.internal:8090").rstrip("/")
 MQTT_GATEWAY_API_KEY = os.getenv("MQTT_GATEWAY_API_KEY", "change-me")
 GATEWAY_TIMEOUT = 5.0
 
